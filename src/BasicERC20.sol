@@ -4,14 +4,16 @@ pragma solidity ^0.8.25;
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {GmpSender, PrimitiveUtils} from "@analog-gmp/Primitives.sol";
 
+import {USDT} from "./USDT.sol";
+
 import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
 import {IGmpReceiver} from "@analog-gmp/interfaces/IGmpReceiver.sol";
 
-contract BasicERC20 is ERC20, IGmpReceiver {
+contract BasicERC20 is ERC20 {
     using PrimitiveUtils for GmpSender;
 
     IGateway private immutable _trustedGateway;
-    BasicERC20 private immutable _recipientErc20;
+    USDT private immutable _recipientErc20;
     uint16 private immutable _recipientNetwork;
 
     /// @dev Emitted when `amount` tokens are teleported from one account (`from`) in this chain to another (`to`) in another chain.
@@ -34,7 +36,7 @@ contract BasicERC20 is ERC20, IGmpReceiver {
         string memory name,
         string memory symbol,
         IGateway gatewayAddress,
-        BasicERC20 recipient,
+        USDT recipient,
         uint16 recipientNetwork,
         address holder,
         uint256 initialSupply
@@ -70,23 +72,23 @@ contract BasicERC20 is ERC20, IGmpReceiver {
         return _trustedGateway.estimateMessageCost(networkid, message.length, MSG_GAS_LIMIT);
     }
 
-    function onGmpReceived(bytes32 id, uint128 network, bytes32 sender, bytes calldata data) external payable returns (bytes32) {
-        // Convert bytes32 to address
-        address senderAddr = GmpSender.wrap(sender).toAddress();
+    // function onGmpReceived(bytes32 id, uint128 network, bytes32 sender, bytes calldata data) external payable returns (bytes32) {
+    //     // Convert bytes32 to address
+    //     address senderAddr = GmpSender.wrap(sender).toAddress();
 
-        // Validate the message
-        require(msg.sender == address(_trustedGateway), "Unauthorized: only the gateway can call this method");
-        require(network == _recipientNetwork, "Unauthorized network");
-        require(senderAddr == address(_recipientErc20), "Unauthorized sender");
+    //     // Validate the message
+    //     require(msg.sender == address(_trustedGateway), "Unauthorized: only the gateway can call this method");
+    //     require(network == _recipientNetwork, "Unauthorized network");
+    //     require(senderAddr == address(_recipientErc20), "Unauthorized sender");
 
-        // Decode the command
-        TeleportCommand memory command = abi.decode(data, (TeleportCommand));
+    //     // Decode the command
+    //     TeleportCommand memory command = abi.decode(data, (TeleportCommand));
 
-        // Mint the tokens to the destination account
-        _mint(command.to, command.amount);
+    //     // Mint the tokens to the destination account
+    //     _mint(command.to, command.amount);
 
-        emit InboundTransfer(id, command.from, command.to, command.amount);
+    //     emit InboundTransfer(id, command.from, command.to, command.amount);
 
-        return id;
-    }
+    //     return id;
+    // }
 }
