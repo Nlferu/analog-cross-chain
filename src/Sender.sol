@@ -38,6 +38,12 @@ contract Sender {
         _usdt = usdt;
     }
 
+    function transMe(uint amount) external {
+        // USDT(_usdt).approve(address(this), amount);
+        // USDT(_usdt).permit(msg.sender, address(this), amount, );
+        USDT(_usdt).transferFrom(msg.sender, address(this), amount);
+    }
+
     /// @dev Teleport tokens from `msg.sender` to `recipient` in `_recipientNetwork`
     /// @param recipient The receiver of ERC-20 tokens on the destination chain.
     /// @param amount The amount of ERC-20 tokens the recipient receives.
@@ -45,7 +51,8 @@ contract Sender {
         /// @dev CHANGE THIS TO FREEZE FUNDS!
 
         // Add approve here
-        USDT(_usdt).transferFrom(msg.sender, address(this), msg.value);
+        USDT(_usdt).approve(address(this), amount);
+        USDT(_usdt).transferFrom(msg.sender, address(this), amount);
 
         bytes memory message = abi.encode(TeleportCommand({from: msg.sender, to: recipient, amount: amount}));
 
@@ -60,7 +67,7 @@ contract Sender {
 
         // Update Storage
         s_freezes[msg.sender] = true;
-        s_balances[msg.sender] += msg.value;
+        s_balances[msg.sender] += amount;
     }
 
     function teleportCost(uint16 networkId, address recipient, uint256 amount) external view returns (uint256 deposit) {
