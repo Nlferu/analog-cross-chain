@@ -3,7 +3,6 @@ pragma solidity ^0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
 import {BasicERC20} from "../src/BasicERC20.sol";
-import {USDT} from "../src/USDT.sol";
 import {GmpTestTools} from "@analog-gmp-testing/GmpTestTools.sol";
 import {Gateway} from "@analog-gmp/Gateway.sol";
 import {GmpMessage, GmpStatus, GmpSender, PrimitiveUtils} from "@analog-gmp/Primitives.sol";
@@ -44,7 +43,7 @@ contract BasicERC20Test is Test {
         // Pre-compute the contract addresses, because the contracts must know each other addresses.
         BasicERC20 shibuyaErc20 = BasicERC20(vm.computeCreateAddress(ALICE, vm.getNonce(ALICE)));
         // BasicERC20 sepoliaErc20 = BasicERC20(vm.computeCreateAddress(BOB, vm.getNonce(BOB)));
-        USDT sepoliaErc20 = USDT(vm.computeCreateAddress(BOB, vm.getNonce(BOB)));
+        BasicERC20 sepoliaErc20 = BasicERC20(vm.computeCreateAddress(BOB, vm.getNonce(BOB)));
 
         // Switch to Shibuya network and deploy the ERC20 using Alice account
         GmpTestTools.switchNetwork(SHIBUYA_NETWORK, ALICE);
@@ -55,7 +54,7 @@ contract BasicERC20Test is Test {
         // Switch to Sepolia network and deploy the ERC20 using Bob account
         GmpTestTools.switchNetwork(SEPOLIA_NETWORK, BOB);
         // sepoliaErc20 = new BasicERC20("Sepolia", "B", SEPOLIA_GATEWAY, shibuyaErc20, SHIBUYA_NETWORK, BOB, 0);
-        sepoliaErc20 = new USDT(SEPOLIA_GATEWAY, shibuyaErc20, SHIBUYA_NETWORK);
+        sepoliaErc20 = new BasicERC20("Sepolia ", "B", SEPOLIA_GATEWAY, shibuyaErc20, SHIBUYA_NETWORK, BOB, 0);
         assertEq(sepoliaErc20.balanceOf(ALICE), 0, "unexpected alice balance in sepolia");
         assertEq(sepoliaErc20.balanceOf(BOB), 0, "unexpected bob balance in sepolia");
 
