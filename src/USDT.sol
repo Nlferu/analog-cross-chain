@@ -8,6 +8,7 @@ import {GmpSender, PrimitiveUtils} from "@analog-gmp/Primitives.sol";
 import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
 
 /// @dev This needs to be deployed on Sepolia
+/// @dev Placeholder token to play real USDT role in the process
 contract USDT is ERC20 {
     using PrimitiveUtils for GmpSender;
 
