@@ -3,6 +3,7 @@ pragma solidity ^0.8.25;
 
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {wUSDT} from "./wUSDT.sol";
+import {Sender} from "./Sender.sol";
 import {GmpSender, PrimitiveUtils} from "@analog-gmp/Primitives.sol";
 
 import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
@@ -15,8 +16,9 @@ contract Receiver {
     event InboundTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256 amount);
 
     IGateway private immutable _trustedGateway;
-    wUSDT private immutable _recipientErc20;
+    Sender private immutable _sender;
     uint16 private immutable _recipientNetwork;
+    address private immutable _wUSDT;
 
     struct TeleportCommand {
         address from;
@@ -24,10 +26,11 @@ contract Receiver {
         uint256 amount;
     }
 
-    constructor(IGateway gatewayAddress, wUSDT recipient, uint16 recipientNetwork) {
+    constructor(IGateway gatewayAddress, Sender sender, uint16 recipientNetwork, address wrapper) {
         _trustedGateway = gatewayAddress;
-        _recipientErc20 = recipient;
+        _sender = sender;
         _recipientNetwork = recipientNetwork;
+        _wUSDT = wrapper;
     }
 
     function onGmpReceived(bytes32 id, uint128 network, bytes32 sender, bytes calldata data) external payable returns (bytes32) {
@@ -37,13 +40,13 @@ contract Receiver {
         // Validate the message
         require(msg.sender == address(_trustedGateway), "Unauthorized: only the gateway can call this method");
         require(network == _recipientNetwork, "Unauthorized network");
-        require(senderAddr == address(_recipientErc20), "Unauthorized sender");
+        require(senderAddr == address(_sender), "Unauthorized sender");
 
         // Decode the command
         TeleportCommand memory command = abi.decode(data, (TeleportCommand));
 
         // Mint the tokens to the destination account
-        _recipientErc20.mint(command.to, command.amount);
+        wUSDT(_wUSDT).mint(command.to, command.amount);
 
         emit InboundTransfer(id, command.from, command.to, command.amount);
 
