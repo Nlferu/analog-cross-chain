@@ -9,13 +9,20 @@ import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
 
 // This will be our main contract with logic, which has onGMPReceive() with all possible payable functions (buy, buyout, refund etc.) triggers
 contract Receiver {
-    /// @dev Emitted when `amount` tokens are teleported from one account (`from`) in another chain to an account (`to`) in this chain.
-    event InboundTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256 amount);
+    error PaymentNotSufficient();
 
     IGateway private immutable _trustedGateway;
     Sender private immutable _sender;
     uint16 private immutable _senderNetwork;
     address private immutable _wUSDT;
+
+    uint pieces;
+
+    mapping(address payer => uint funds) public s_balances;
+    mapping(address payer => bool isExternalBuyer) public s_externalBuyers;
+
+    /// @dev Emitted when `amount` tokens are teleported from one account (`from`) in another chain to an account (`to`) in this chain.
+    event InboundTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256 amount);
 
     struct TeleportCommand {
         address from;
@@ -28,6 +35,21 @@ contract Receiver {
         _sender = sender;
         _senderNetwork = senderNetwork;
         _wUSDT = wrapper;
+
+        pieces = 1000;
+    }
+
+    /// @dev Test User paying USDT to use this function by bridge
+    function buy() external payable {
+        if (msg.value < 0.02 ether) revert PaymentNotSufficient();
+
+        s_balances[msg.sender] += msg.value;
+    }
+
+    function _buy(address from, uint payment, uint boughtAmount) internal {
+        pieces - boughtAmount;
+
+        s_balances[from] += payment;
     }
 
     function onGmpReceived(bytes32 id, uint128 network, bytes32 sender, bytes calldata data) external payable returns (bytes32) {
