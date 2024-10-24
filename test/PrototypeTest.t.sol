@@ -45,6 +45,7 @@ contract PrototypeTest is Test {
         //////////////////////////////////////////////
 
         // Pre-compute the contract addresses, because the contracts must know each other addresses.
+        /// @dev Deploying from other addresses to get different contract addresses on both chains
         Sender sender = Sender(vm.computeCreateAddress(OWNER, vm.getNonce(OWNER)));
         Receiver receiver = Receiver(vm.computeCreateAddress(DEVIL, vm.getNonce(DEVIL)));
 
@@ -68,14 +69,47 @@ contract PrototypeTest is Test {
         GmpTestTools.switchNetwork(SHIBUYA_NETWORK, ALICE);
         console.log("SHIBUYA NETWORK -> Alice wUSDT Balance: ", wusdt.balanceOf(ALICE));
 
+        //////////////////////
+        // Send GMP message //
+        //////////////////////
+
         // Deposit USDT on Sender contract by triggering teleport fn
         GmpTestTools.switchNetwork(SEPOLIA_NETWORK, ALICE);
+        uint256 fee = sender.teleportCost(SHIBUYA_NETWORK, address(receiver), 200);
+        console.log("Fee: ", fee);
+
+        /// @dev User needs to approve Sender contract to deposit USDT on it
         USDT(usdt).approve(address(sender), 200);
-        sender.transMe(200);
-        // uint256 deposit = sender.teleportCost(SHIBUYA_NETWORK, address(receiver), 200);
-        // console.log("Deposit: ", deposit);
-        // vm.expectEmit(false, true, true, true, address(sender));
-        // emit Sender.OutboundTransfer(bytes32(0), ALICE, address(receiver), 200);
-        // sender.teleport{value: deposit}(address(receiver), 200);
+
+        vm.expectEmit(false, true, true, true, address(sender));
+        emit Sender.OutboundTransfer(bytes32(0), ALICE, address(receiver), 200);
+        bytes32 messageID = sender.teleport{value: fee}(address(receiver), 200);
+
+        ///////////////////////////////////////////
+        // Wait Chronicles Relay the GMP message //
+        ///////////////////////////////////////////
+
+        // Now with the `messageID`, Alice can check the message status in the destination gateway contract
+        // status 0: means the message is pending
+        // status 1: means the message was executed successfully
+        // status 2: means the message was executed but reverted
+        GmpTestTools.switchNetwork(SHIBUYA_NETWORK, ALICE);
+        console.log("SHIBUYA NETWORK GMP not executed yet Alice should have 0 wUSDT balance -> Alice wUSDT Balance: ", wusdt.balanceOf(ALICE));
+        assertTrue(SHIBUYA_GATEWAY.gmpInfo(messageID).status == GmpStatus.NOT_FOUND, "unexpected message status, expect 'pending'");
+
+        // Note: In a live network, the GMP message will be relayed by Chronicle Nodes after a minimum number of confirmations.
+        // here we can simulate this behavior by calling `GmpTestTools.relayMessages()`, this will relay all pending messages.
+        //vm.expectEmit(true, true, false, true, address(receiver));
+        //emit Receiver.InboundTransfer(messageID, ALICE, address(receiver), 200);
+        GmpTestTools.relayMessages();
+
+        // Success! The GMP message was executed!!!
+        //assertTrue(SHIBUYA_GATEWAY.gmpInfo(messageID).status == GmpStatus.SUCCESS, "failed to execute GMP");
+
+        GmpTestTools.switchNetwork(SEPOLIA_NETWORK);
+        console.log("\nBalances after bridge...");
+        console.log("SEPOLIA NETWORK -> Alice USDT Balance: ", usdt.balanceOf(ALICE));
+        GmpTestTools.switchNetwork(SHIBUYA_NETWORK, ALICE);
+        console.log("SHIBUYA NETWORK -> Alice wUSDT Balance: ", wusdt.balanceOf(ALICE));
     }
 }
