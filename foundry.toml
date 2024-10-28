@@ -2,7 +2,7 @@
 src = "src"
 out = "out"
 libs = ["lib"]
-remappings = ['@analog-gmp=lib/analog-gmp/src/', '@solmate=lib/solmate/src/', '@ERC721A/contracts=lib/ERC721A/contracts']
+remappings = ['@analog-gmp=lib/analog-gmp/src/', '@solmate=lib/solmate/src/', '@ERC721A/contracts=lib/ERC721A/contracts', '@openzeppelin/contracts=lib/openzeppelin-contracts/contracts']
 ffi = false
 
 # Solc Options
