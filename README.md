@@ -12,11 +12,6 @@
 
 # Call
 
-0. Technically cross-chain nft's are 2 different NFTs
-1. Mirror NFT contract on each chain anyway?
-2. Both NFT contracts implements GMP utility and keep tracking tokenID's so there is no same tokenID on either chain in use
-3. Can we somehow enable voting for cross chain nfts?
-
 https://chain.link/education-hub/cross-chain-nft
 
 -   <u>**Burn-and-mint:**</u> An NFT owner puts their NFT into a smart contract on the source chain and burns it, in effect removing it from that blockchain. Once this is done, an equivalent NFT is created on the destination blockchain from its corresponding smart contract. This process can occur in both directions.
