@@ -25,3 +25,23 @@ https://chain.link/education-hub/cross-chain-nft
 https://github.com/smartcontractkit/ccip-starter-kit-foundry/blob/main/src/cross-chain-nft-minter/DestinationMinter.sol
 
 https://github.com/smartcontractkit/ccip-cross-chain-nft/blob/main/src/XNFT.sol
+
+# Cross Chain NFT
+
+https://cll-devrel.gitbook.io/ccip-bootcamp/day-1/welcome-to-ccip-bootcamp
+
+-   Give user possibility to transfer his NFT to other chain
+
+@dev Mint from buy only available on 'SOURCE' contract
+
+-   If someone buys from another chain -> (mint) and (lock) on 'SOURCE' then transfer to 'DESTINATION' (mint)
+
+-   If tokens comes from 'DESTINATION' to 'SOURCE' then (burn) on 'DESTINATION' and (unlock) on 'SOURCE'
+
+-   Votes counted from 'SOURCE' ignoring (lock)
+
+Source - crossChainTransferFrom(),
+Destination - onReceive(),
+
+Transfer from destination chain to destination chain -> we need to keep track of nft owner
+check if there is problem with approve on tokens transfer
