@@ -3,17 +3,20 @@ pragma solidity ^0.8.25;
 
 import {ERC721A} from "@ERC721A/contracts/ERC721A.sol";
 import {ERC721AQueryable} from "@ERC721A/contracts/extensions/ERC721AQueryable.sol";
-import "../extensions/ERC721AVotes.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
+import {IERC721A} from "@ERC721A/contracts/IERC721A.sol";
 
-contract DestinationNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
+/// @dev Owner should be source chain NFT contract
+contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
     /// @dev Consider changing it into 'bytes32 private immutable'
     string private baseURI;
 
+    /// @dev Emitted when tokens are teleported from one chain to another.
+    event InboundTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256 amount);
+
     /// @dev Constructor
-    constructor(string memory name, string memory symbol, string memory uri, address owner) ERC721A(name, symbol) EIP712(name, "version 1") Ownable(owner) {
+    constructor(string memory name, string memory symbol, string memory uri, address owner) ERC721A(name, symbol) Ownable(owner) {
         baseURI = uri;
     }
 
@@ -59,39 +62,7 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Owna
 
     /// @notice Override ERC721A and ERC721AVotes Function
     /// @dev Additionally delegates vote to new token owner
-    function _afterTokenTransfers(address from, address to, uint256 startTokenId, uint256 quantity) internal virtual override(ERC721A, ERC721AVotes) {
+    function _afterTokenTransfers(address from, address to, uint256 startTokenId, uint256 quantity) internal virtual override(ERC721A) {
         super._afterTokenTransfers(from, to, startTokenId, quantity);
-        if (to != address(0)) _delegate(to, to);
-    }
-
-    /// @dev Check if we indeed need this -> if ERC721AQueryable included override(ERC721A, IERC721A)
-    ///
-    /// @dev ERC721a Governance Token Interface Support
-    /// @dev Implements the interface support check for ERC721a Governance Token
-    /// @notice Checks if the contract implements an interface you query for, including ERC721A and Votes interfaces
-    /// @param interfaceId The interface identifier, as specified in ERC-165
-    /// @return True if the contract implements `interfaceId` or if `interfaceId` is the ERC-165 interface
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721A, IERC721A) returns (bool) {
-        return interfaceId == type(IVotes).interfaceId || super.supportsInterface(interfaceId);
-    }
-
-    ////////////////////////////////////
-    /// @dev VOTING MODULE OVERRIDE'S //
-    ////////////////////////////////////
-
-    /// @dev Override Vote Function
-    /// @notice Changes block.number into block.timestamp for snapshot
-    function clock() public view override returns (uint48) {
-        return Time.timestamp();
-    }
-
-    /// @dev Override Vote Function
-    /// @notice Changes block.number into block.timestamp for snapshot
-    function CLOCK_MODE() public pure override returns (string memory) {
-        // Check that the clock was not modified
-        /// @dev Is this check even possible to fail?
-        // if (clock() != Time.timestamp()) revert ERC6372InconsistentClock();
-
-        return "mode=timestamp";
     }
 }
