@@ -2,7 +2,7 @@
 pragma solidity ^0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
-import {BasicERC20} from "../src/BasicERC20.sol";
+import {BasicERC20} from "../src/cross-basic-analog/BasicERC20.sol";
 import {GmpTestTools} from "@analog-gmp-testing/GmpTestTools.sol";
 import {Gateway} from "@analog-gmp/Gateway.sol";
 import {GmpMessage, GmpStatus, GmpSender, PrimitiveUtils} from "@analog-gmp/Primitives.sol";
