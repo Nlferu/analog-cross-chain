@@ -7,10 +7,15 @@ import "../extensions/ERC721AVotes.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
+import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
 
 contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     /// @dev Consider changing it into 'bytes32 private immutable'
     string private baseURI;
+    IGateway private immutable _trustedGateway;
+
+    /// @dev Emitted when tokens are teleported from one chain to another.
+    event OutboundTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256 amount);
 
     /// @dev Constructor
     constructor(string memory name, string memory symbol, string memory uri, address owner) ERC721A(name, symbol) EIP712(name, "version 1") Ownable(owner) {
@@ -53,6 +58,26 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     /// @notice Safely transfers `tokenIds` in batch from `from` to `to`
     function safeBatchTransferFrom(address from, address to, uint256[] memory tokenIds) external {
         super._safeBatchTransferFrom(address(0), from, to, tokenIds, "");
+    }
+
+    /// @dev CROSS-CHAIN
+    function crossChainTransferFrom(address receiver) external {
+        // lock(tokens[]);
+        /// @dev Function 'submitMessage()' sends message from chain A to chain B
+        /// @param destinationAddress the target address on the destination chain
+        /// @param destinationNetwork the target chain where the contract call will be made
+        /// @param executionGasLimit the gas limit available for the contract call
+        /// @param data message data with no specified format
+        // messageID = _trustedGateway.submitMessage{value: msg.value}(receiver, _receiverNetwork, MSG_GAS_LIMIT, message);
+        // emit OutboundTransfer(messageID, msg.sender, receiver, amount);
+    }
+
+    function transferCost(uint16 networkId, address /*receiver*/, uint256 /*amount*/) internal view returns (uint256 cost) {
+        //bytes memory message = abi.encode(TeleportCommand({from: msg.sender, to: receiver, amount: amount}));
+        bytes memory message = abi.encode("");
+        uint MSG_GAS_LIMIT = 100_000;
+
+        return _trustedGateway.estimateMessageCost(networkId, message.length, MSG_GAS_LIMIT);
     }
 
     /// @dev The following functions are overrides required by Solidity
