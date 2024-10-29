@@ -40,8 +40,12 @@ https://cll-devrel.gitbook.io/ccip-bootcamp/day-1/welcome-to-ccip-bootcamp
 
 -   Votes counted from 'SOURCE' ignoring (lock)
 
-Source - crossChainTransferFrom(),
-Destination - onReceive(),
+### Source:
 
-Transfer from destination chain to destination chain -> we need to keep track of nft owner
-check if there is problem with approve on tokens transfer
+-   crossChainTransferFrom() -> lock tokens send cross chain msg to destination contract
+-   onGmpReceived() -> unlock nft or update tokens ownership
+
+### Destination:
+
+-   transferFrom() -> update source chain tokens ownership
+-   onGmpReceived() -> mint nft's
