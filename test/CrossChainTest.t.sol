@@ -55,6 +55,7 @@ contract CrossChainTest is Test {
         vm.expectRevert(SourceNFT.TokensActiveOnOtherChain.selector);
         source.safeBatchTransferFrom(USER, OWNER, tokens);
 
+        vm.prank(USER);
         source.safeBatchTransferFrom(USER, OWNER, unlocked);
     }
 }
