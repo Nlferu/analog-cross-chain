@@ -66,7 +66,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     function safeBatchTransferFrom(address from, address to, uint256[] memory tokenIds) external {
         if (!areTokensUnlocked(tokenIds)) revert TokensActiveOnOtherChain();
 
-        _safeBatchTransferFrom(address(0), from, to, tokenIds, "");
+        _safeBatchTransferFrom(msg.sender, from, to, tokenIds, "");
     }
 
     /// @dev CROSS-CHAIN FUNCTIONS
