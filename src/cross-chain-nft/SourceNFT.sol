@@ -10,12 +10,19 @@ import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
 
 contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
+    error TokensActiveOnOtherChain();
+
     /// @dev Consider changing it into 'bytes32 private immutable'
     string private baseURI;
     IGateway private immutable _trustedGateway;
 
+    mapping(uint256 token => bool locked) tokenLockStatus;
+
     /// @dev Emitted when tokens are teleported from one chain to another.
     event OutboundTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256 amount);
+
+    event TokensLocked(uint[] tokens);
+    event TokensUnlocked(uint[] tokens);
 
     /// @dev Constructor
     constructor(string memory name, string memory symbol, string memory uri, address owner) ERC721A(name, symbol) EIP712(name, "version 1") Ownable(owner) {
@@ -37,7 +44,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     /// @notice Returns total minted tokens amount ignoring performed burns
     /// @dev Call 'totalSupply()' function for amount corrected by burned tokens amount
     function totalMinted() external view returns (uint256) {
-        return super._totalMinted();
+        return _totalMinted();
     }
 
     /// @notice Mints multiple tokens at once to a single user and instantly delegates votes to receiver
@@ -52,15 +59,18 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     function batchBurn(address owner) external onlyOwner {
         uint256[] memory tokenIds = this.tokensOfOwner(owner);
 
-        super._batchBurn(address(0), tokenIds);
+        _batchBurn(address(0), tokenIds);
     }
 
     /// @notice Safely transfers `tokenIds` in batch from `from` to `to`
     function safeBatchTransferFrom(address from, address to, uint256[] memory tokenIds) external {
-        super._safeBatchTransferFrom(address(0), from, to, tokenIds, "");
+        if (!areTokensLocked(tokenIds)) revert TokensActiveOnOtherChain();
+
+        _safeBatchTransferFrom(address(0), from, to, tokenIds, "");
     }
 
-    /// @dev CROSS-CHAIN
+    /// @dev CROSS-CHAIN FUNCTIONS
+
     function crossChainTransferFrom(address receiver) external {
         // lock(tokens[]);
         /// @dev Function 'submitMessage()' sends message from chain A to chain B
@@ -80,7 +90,43 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         return _trustedGateway.estimateMessageCost(networkId, message.length, MSG_GAS_LIMIT);
     }
 
-    /// @dev The following functions are overrides required by Solidity
+    function onGmpReceived(bytes32 /*id*/, uint128 /*network*/, bytes32 /*sender*/, bytes calldata /*data*/) external payable returns (bytes32) {
+        // unlock(tokens[]);
+        // transferOwnership();
+        uint[] memory tokens;
+        _safeBatchTransferFrom(address(0), address(0), address(0), tokens, "");
+
+        return "";
+    }
+
+    // Make it internal
+    function lockTokens(uint256[] memory tokenIds) public {
+        for (uint i; i < tokenIds.length; i++) {
+            tokenLockStatus[tokenIds[i]] = true;
+        }
+
+        emit TokensLocked(tokenIds);
+    }
+
+    // Make it internal
+    function unlockTokens(uint256[] memory tokenIds) public {
+        for (uint i; i < tokenIds.length; i++) {
+            tokenLockStatus[tokenIds[i]] = false;
+        }
+
+        emit TokensUnlocked(tokenIds);
+    }
+
+    // Make it internal
+    function areTokensLocked(uint256[] memory tokenIds) public view returns (bool) {
+        for (uint256 i; i < tokenIds.length; i++) {
+            if (!tokenLockStatus[tokenIds[i]]) return false;
+        }
+
+        return true;
+    }
+
+    /// @dev REQUIRED FUNCTIONS OVERRIDES
 
     /// @notice Override ERC721A and ERC721AVotes Function
     /// @dev Additionally delegates vote to new token owner
