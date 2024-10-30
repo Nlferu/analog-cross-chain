@@ -64,7 +64,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     /// @notice Safely transfers `tokenIds` in batch from `from` to `to`
     function safeBatchTransferFrom(address from, address to, uint256[] memory tokenIds) external {
-        if (!areTokensLocked(tokenIds)) revert TokensActiveOnOtherChain();
+        if (!areTokensUnlocked(tokenIds)) revert TokensActiveOnOtherChain();
 
         _safeBatchTransferFrom(address(0), from, to, tokenIds, "");
     }
@@ -118,9 +118,9 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     }
 
     // Make it internal
-    function areTokensLocked(uint256[] memory tokenIds) public view returns (bool) {
+    function areTokensUnlocked(uint256[] memory tokenIds) public view returns (bool) {
         for (uint256 i; i < tokenIds.length; i++) {
-            if (!tokenLockStatus[tokenIds[i]]) return false;
+            if (tokenLockStatus[tokenIds[i]]) return false;
         }
 
         return true;
