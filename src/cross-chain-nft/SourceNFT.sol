@@ -11,9 +11,18 @@ import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
 
 contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     error TokensActiveOnOtherChain();
+    error ForbiddenCaller();
+    error ForbiddenNetwork();
+    error ForbiddenContract();
 
     struct TeleportData {
         address user;
+        uint256[] tokens;
+    }
+
+    struct TeleportOwnership {
+        address from;
+        address to;
         uint256[] tokens;
     }
 
@@ -29,6 +38,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     /// @dev Emitted when tokens are teleported from one chain to another.
     event OutboundTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256[] tokens);
+    event InboundOwnershipChange(bytes32 indexed id, address from, address to, uint256[] tokens);
 
     event TokensLocked(uint[] tokens);
     event TokensUnlocked(uint[] tokens);
@@ -91,7 +101,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     /// @dev CROSS-CHAIN FUNCTIONS
 
-    function crossChainTransferFrom(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
+    function crossChainTokensTransferFrom(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
         lockTokens(tokenIds);
 
         bytes memory message = abi.encode(TeleportData({user: msg.sender, tokens: tokenIds}));
@@ -120,13 +130,23 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         return i_trustedGateway.estimateMessageCost(networkId, message.length, MSG_GAS_LIMIT);
     }
 
-    function onGmpReceived(bytes32 /*id*/, uint128 /*network*/, bytes32 /*sender*/, bytes calldata /*data*/) external payable returns (bytes32) {
-        // unlock(tokens[]);
-        // transferOwnership();
-        uint[] memory tokens;
-        _safeBatchTransferFrom(address(0), address(0), address(0), tokens, "");
+    function onGmpReceived(bytes32 id, uint128 network, bytes32 sender, bytes calldata data) external payable returns (bytes32) {
+        address senderAddress = address(uint160(uint256(sender)));
 
-        return "";
+        if (msg.sender != address(i_trustedGateway)) revert ForbiddenCaller();
+        if (network != i_destinationNetwork) revert ForbiddenNetwork();
+        if (senderAddress != i_destinationContract) revert ForbiddenContract();
+
+        TeleportOwnership memory command = abi.decode(data, (TeleportOwnership));
+
+        /// @dev Add condition, if command contains X then do unlock, otherwise update ownership
+        unlockTokens(command.tokens);
+        /// @dev Below skips approve from user
+        _safeBatchTransferFrom(address(0), command.from, command.to, command.tokens, "");
+
+        emit InboundOwnershipChange(id, command.from, command.to, command.tokens);
+
+        return id;
     }
 
     // Make it internal
