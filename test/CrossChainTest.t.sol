@@ -16,9 +16,20 @@ contract CrossChainTest is Test {
     address private OWNER = makeAddr("Owner");
     address private USER = makeAddr("User");
 
+    /// @dev Try adding Aleph Zero EVM network
+    // Source Network
+    Gateway private constant ALEPH_GATEWAY = Gateway(GmpTestTools.SHIBUYA_GATEWAY);
+    uint16 private constant ALEPH_NETWORK = GmpTestTools.SHIBUYA_NETWORK_ID;
+
+    // Destination Network
+    Gateway private constant ETHEREUM_GATEWAY = Gateway(GmpTestTools.SEPOLIA_GATEWAY);
+    uint16 private constant ETHEREUM_NETWORK = GmpTestTools.SEPOLIA_NETWORK_ID;
+
     function setUp() public {
+        address destination = address(0);
+
         vm.prank(OWNER);
-        source = new SourceNFT("Source", "SRC", "http", OWNER);
+        source = new SourceNFT("Source", "SRC", "http", OWNER, ETHEREUM_GATEWAY, destination, ETHEREUM_NETWORK);
 
         deal(OWNER, 100 ether);
     }
