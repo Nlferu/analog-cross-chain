@@ -5,7 +5,6 @@ import {ERC721A} from "@ERC721A/contracts/ERC721A.sol";
 import {ERC721AQueryable} from "@ERC721A/contracts/extensions/ERC721AQueryable.sol";
 import "../extensions/ERC721AVotes.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {DestinationNFT} from "./DestinationNFT.sol";
 
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
@@ -156,6 +155,16 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
         return true;
     }
+
+    /// @dev ERC721A FUNCTIONS OVERRIDES ADJUSTING TOKEN LOCK RESTRICTION
+
+    // approve()
+    // delegate()
+    // delegateBySig()
+    // safeTransferFrom()
+    // safeTransferFrom()
+    // setApprovalForAll()
+    // transferFrom()
 
     /// @dev REQUIRED FUNCTIONS OVERRIDES
 
