@@ -9,12 +9,12 @@ import {IERC721A} from "@ERC721A/contracts/IERC721A.sol";
 import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
 
 /// @dev Owner should be source chain NFT contract
-contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
+contract sourceNFT is ERC721A, ERC721AQueryable, Ownable {
     error ForbiddenCaller();
     error ForbiddenNetwork();
     error ForbiddenContract();
 
-    struct TeleportData {
+    struct TeleportTokens {
         address user;
         uint256[] tokens;
     }
@@ -27,12 +27,15 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
 
     /// @dev Consider changing it into 'bytes32 private immutable'
     string private baseURI;
+    uint256 private constant MSG_GAS_LIMIT = 100_000;
     IGateway private immutable i_trustedGateway;
     address private immutable i_sourceContract;
     uint16 private immutable i_sourceNetwork;
 
     /// @dev Emitted when tokens are teleported from one chain to another.
-    event InboundTransfer(bytes32 indexed id, address indexed user, uint256[] tokens);
+    event InboundTokensTransfer(bytes32 indexed id, address indexed user, uint256[] tokens);
+    event OutboundTokensTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256[] tokens);
+    event OutboundOwnershipChange(bytes32 indexed id, address from, address to, uint256[] tokens);
 
     /// @dev Constructor
     constructor(
@@ -90,9 +93,49 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
 
     /// @dev CROSS-CHAIN FUNCTIONS
 
-    function crossChainTokensTransferFrom() external {}
+    /// @dev Consider removing 'payable'
+    function crossChainTokensTransferFrom(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
+        _batchBurn(address(0), tokenIds);
 
-    function crossChainTokensOwnershipChange() external {}
+        // Encode TeleportTokens struct and prepend with identifier `0x01`
+        bytes memory message = abi.encodePacked(uint8(0x01), abi.encode(TeleportTokens({user: msg.sender, tokens: tokenIds})));
+
+        /// @dev Function 'submitMessage()' sends message from chain A to chain B
+        /// @param sourceAddress the target address on the source chain
+        /// @param sourceNetwork the target chain where the contract call will be made
+        /// @param executionGasLimit the gas limit available for the contract call
+        /// @param data message data with no specified format
+        messageID = i_trustedGateway.submitMessage{value: i_trustedGateway.estimateMessageCost(i_sourceNetwork, message.length, MSG_GAS_LIMIT)}(
+            i_sourceContract,
+            i_sourceNetwork,
+            MSG_GAS_LIMIT,
+            message
+        );
+
+        emit OutboundTokensTransfer(messageID, msg.sender, i_sourceContract, tokenIds);
+    }
+
+    /// @dev Consider removing 'payable' -> change it to internal
+    function crossChainTokensOwnershipChange(address to, uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
+        _safeBatchTransferFrom(address(0), msg.sender, to, tokenIds, "");
+
+        // Encode TeleportOwnership struct and prepend with identifier `0x01`
+        bytes memory message = abi.encodePacked(uint8(0x02), abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds})));
+
+        /// @dev Function 'submitMessage()' sends message from chain A to chain B
+        /// @param sourceAddress the target address on the source chain
+        /// @param sourceNetwork the target chain where the contract call will be made
+        /// @param executionGasLimit the gas limit available for the contract call
+        /// @param data message data with no specified format
+        messageID = i_trustedGateway.submitMessage{value: i_trustedGateway.estimateMessageCost(i_sourceNetwork, message.length, MSG_GAS_LIMIT)}(
+            i_sourceContract,
+            i_sourceNetwork,
+            MSG_GAS_LIMIT,
+            message
+        );
+
+        emit OutboundOwnershipChange(messageID, msg.sender, to, tokenIds);
+    }
 
     function onGmpReceived(bytes32 id, uint128 network, bytes32 sender, bytes calldata data) external payable returns (bytes32) {
         address source = address(uint160(uint256(sender)));
@@ -101,11 +144,11 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         if (network != i_sourceNetwork) revert ForbiddenNetwork();
         if (source != i_sourceContract) revert ForbiddenContract();
 
-        TeleportData memory command = abi.decode(data, (TeleportData));
+        TeleportTokens memory command = abi.decode(data, (TeleportTokens));
 
         _safeMint(command.user, command.tokens.length);
 
-        emit InboundTransfer(id, command.user, command.tokens);
+        emit InboundTokensTransfer(id, command.user, command.tokens);
 
         return id;
     }
