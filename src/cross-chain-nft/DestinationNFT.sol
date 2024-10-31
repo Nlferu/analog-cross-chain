@@ -6,18 +6,48 @@ import {ERC721AQueryable} from "@ERC721A/contracts/extensions/ERC721AQueryable.s
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {IERC721A} from "@ERC721A/contracts/IERC721A.sol";
+import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
 
 /// @dev Owner should be source chain NFT contract
 contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
+    error ForbiddenCaller();
+    error ForbiddenNetwork();
+    error ForbiddenContract();
+
+    struct TeleportData {
+        address user;
+        uint256[] tokens;
+    }
+
+    struct TeleportOwnership {
+        address from;
+        address to;
+        uint256[] tokens;
+    }
+
     /// @dev Consider changing it into 'bytes32 private immutable'
     string private baseURI;
+    IGateway private immutable i_trustedGateway;
+    address private immutable i_sourceContract;
+    uint16 private immutable i_sourceNetwork;
 
     /// @dev Emitted when tokens are teleported from one chain to another.
-    event InboundTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256 amount);
+    event InboundTransfer(bytes32 indexed id, address indexed user, uint256[] tokens);
 
     /// @dev Constructor
-    constructor(string memory name, string memory symbol, string memory uri, address owner) ERC721A(name, symbol) Ownable(owner) {
+    constructor(
+        string memory name,
+        string memory symbol,
+        string memory uri,
+        address owner,
+        IGateway gatewayAddress,
+        address sourceContract,
+        uint16 sourceNetwork
+    ) ERC721A(name, symbol) Ownable(owner) {
         baseURI = uri;
+        i_trustedGateway = gatewayAddress;
+        i_sourceContract = sourceContract;
+        i_sourceNetwork = sourceNetwork;
     }
 
     /// @notice Leads to Metadata, which is unique for each token
@@ -41,9 +71,9 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
     /// @notice Mints multiple tokens at once to a single user and instantly delegates votes to receiver
     /// @param to Address of receiver of minted tokens
     /// @param quantity Amount of tokens to be minted
-    function safeBatchMint(address to, uint256 quantity) external onlyOwner {
-        _safeMint(to, quantity);
-    }
+    // function safeBatchMint(address to, uint256 quantity) external onlyOwner {
+    //     _safeMint(to, quantity);
+    // }
 
     /// @notice Burns all tokens owned by user
     /// @param owner Address of tokens owner
@@ -55,12 +85,30 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
 
     /// @notice Safely transfers `tokenIds` in batch from `from` to `to`
     function safeBatchTransferFrom(address from, address to, uint256[] memory tokenIds) external {
-        _safeBatchTransferFrom(address(0), from, to, tokenIds, "");
+        _safeBatchTransferFrom(msg.sender, from, to, tokenIds, "");
     }
 
     /// @dev CROSS-CHAIN FUNCTIONS
 
-    function crossChainTransferFrom() external {}
+    function crossChainTokensTransferFrom() external {}
+
+    function crossChainTokensOwnershipChange() external {}
+
+    function onGmpReceived(bytes32 id, uint128 network, bytes32 sender, bytes calldata data) external payable returns (bytes32) {
+        address source = address(uint160(uint256(sender)));
+
+        if (msg.sender != address(i_trustedGateway)) revert ForbiddenCaller();
+        if (network != i_sourceNetwork) revert ForbiddenNetwork();
+        if (source != i_sourceContract) revert ForbiddenContract();
+
+        TeleportData memory command = abi.decode(data, (TeleportData));
+
+        _safeMint(command.user, command.tokens.length);
+
+        emit InboundTransfer(id, command.user, command.tokens);
+
+        return id;
+    }
 
     /// @dev REQUIRED FUNCTIONS OVERRIDES
 
