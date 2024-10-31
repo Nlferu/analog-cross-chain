@@ -15,21 +15,20 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     error ForbiddenNetwork();
     error ForbiddenContract();
 
-    struct TeleportData {
+    struct TeleportTokens {
         address user;
         uint256[] tokens;
     }
 
-    struct TeleportOwnership {
+    struct UpdateOwnership {
         address from;
         address to;
         uint256[] tokens;
     }
 
-    uint256 private constant MSG_GAS_LIMIT = 100_000;
-
     /// @dev Consider changing it into 'bytes32 private immutable'
     string private baseURI;
+    uint256 private constant MSG_GAS_LIMIT = 100_000;
     IGateway private immutable i_trustedGateway;
     address private immutable i_destinationContract;
     uint16 private immutable i_destinationNetwork;
@@ -37,7 +36,8 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     mapping(uint256 token => bool locked) tokenLockStatus;
 
     /// @dev Emitted when tokens are teleported from one chain to another.
-    event OutboundTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256[] tokens);
+    event OutboundTokensTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256[] tokens);
+    event InboundTokensTransfer(bytes32 indexed id, address indexed user, uint256[] tokens);
     event InboundOwnershipChange(bytes32 indexed id, address from, address to, uint256[] tokens);
 
     event TokensLocked(uint[] tokens);
@@ -101,10 +101,11 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     /// @dev CROSS-CHAIN FUNCTIONS
 
+    /// @dev Consider removing 'payable'
     function crossChainTokensTransferFrom(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
         lockTokens(tokenIds);
 
-        bytes memory message = abi.encode(TeleportData({user: msg.sender, tokens: tokenIds}));
+        bytes memory message = abi.encode(TeleportTokens({user: msg.sender, tokens: tokenIds}));
 
         //uint256 cost = i_trustedGateway.estimateMessageCost(i_destinationNetwork, message.length, MSG_GAS_LIMIT);
 
@@ -120,12 +121,12 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
             message
         );
 
-        emit OutboundTransfer(messageID, msg.sender, i_destinationContract, tokenIds);
+        emit OutboundTokensTransfer(messageID, msg.sender, i_destinationContract, tokenIds);
     }
 
     /// @dev Probably to be removed
     function transferCost(uint16 networkId, uint[] memory tokenIds) public view returns (uint256 cost) {
-        bytes memory message = abi.encode(TeleportData({user: msg.sender, tokens: tokenIds}));
+        bytes memory message = abi.encode(TeleportTokens({user: msg.sender, tokens: tokenIds}));
 
         return i_trustedGateway.estimateMessageCost(networkId, message.length, MSG_GAS_LIMIT);
     }
@@ -137,14 +138,23 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         if (network != i_destinationNetwork) revert ForbiddenNetwork();
         if (senderAddress != i_destinationContract) revert ForbiddenContract();
 
-        TeleportOwnership memory command = abi.decode(data, (TeleportOwnership));
+        /// @dev Check if below approach works
+        uint8 commandType = uint8(data[0]);
 
-        /// @dev Add condition, if command contains X then do unlock, otherwise update ownership
-        unlockTokens(command.tokens);
-        /// @dev Below skips approve from user
-        _safeBatchTransferFrom(address(0), command.from, command.to, command.tokens, "");
+        if (commandType == 0x01) {
+            TeleportTokens memory command = abi.decode(data, (TeleportTokens));
 
-        emit InboundOwnershipChange(id, command.from, command.to, command.tokens);
+            unlockTokens(command.tokens);
+
+            emit InboundTokensTransfer(id, command.user, command.tokens);
+        } else if (commandType == 0x02) {
+            UpdateOwnership memory command = abi.decode(data, (UpdateOwnership));
+
+            /// @dev Below skips approve from user
+            _safeBatchTransferFrom(address(0), command.from, command.to, command.tokens, "");
+
+            emit InboundOwnershipChange(id, command.from, command.to, command.tokens);
+        }
 
         return id;
     }
