@@ -5,6 +5,7 @@ import {ERC721A} from "@ERC721A/contracts/ERC721A.sol";
 import {ERC721AQueryable} from "@ERC721A/contracts/extensions/ERC721AQueryable.sol";
 import "../extensions/ERC721AVotes.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {DestinationNFT} from "./DestinationNFT.sol";
 
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
@@ -12,21 +13,41 @@ import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
 contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     error TokensActiveOnOtherChain();
 
+    struct TeleportData {
+        address user;
+        uint256[] tokens;
+    }
+
+    uint256 private constant MSG_GAS_LIMIT = 100_000;
+
     /// @dev Consider changing it into 'bytes32 private immutable'
     string private baseURI;
-    IGateway private immutable _trustedGateway;
+    IGateway private immutable i_trustedGateway;
+    address private immutable i_destinationContract;
+    uint16 private immutable i_destinationNetwork;
 
     mapping(uint256 token => bool locked) tokenLockStatus;
 
     /// @dev Emitted when tokens are teleported from one chain to another.
-    event OutboundTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256 amount);
+    event OutboundTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256[] tokens);
 
     event TokensLocked(uint[] tokens);
     event TokensUnlocked(uint[] tokens);
 
     /// @dev Constructor
-    constructor(string memory name, string memory symbol, string memory uri, address owner) ERC721A(name, symbol) EIP712(name, "version 1") Ownable(owner) {
+    constructor(
+        string memory name,
+        string memory symbol,
+        string memory uri,
+        address owner,
+        IGateway gatewayAddress,
+        address destinationAddress,
+        uint16 destinationNetwork
+    ) ERC721A(name, symbol) EIP712(name, "version 1") Ownable(owner) {
         baseURI = uri;
+        i_trustedGateway = gatewayAddress;
+        i_destinationContract = destinationAddress;
+        i_destinationNetwork = destinationNetwork;
     }
 
     /// @notice Leads to Metadata, which is unique for each token
@@ -71,23 +92,33 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     /// @dev CROSS-CHAIN FUNCTIONS
 
-    function crossChainTransferFrom(address receiver) external {
-        // lock(tokens[]);
+    function crossChainTransferFrom(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
+        lockTokens(tokenIds);
+
+        bytes memory message = abi.encode(TeleportData({user: msg.sender, tokens: tokenIds}));
+
+        //uint256 cost = i_trustedGateway.estimateMessageCost(i_destinationNetwork, message.length, MSG_GAS_LIMIT);
+
         /// @dev Function 'submitMessage()' sends message from chain A to chain B
         /// @param destinationAddress the target address on the destination chain
         /// @param destinationNetwork the target chain where the contract call will be made
         /// @param executionGasLimit the gas limit available for the contract call
         /// @param data message data with no specified format
-        // messageID = _trustedGateway.submitMessage{value: msg.value}(receiver, _receiverNetwork, MSG_GAS_LIMIT, message);
-        // emit OutboundTransfer(messageID, msg.sender, receiver, amount);
+        messageID = i_trustedGateway.submitMessage{value: i_trustedGateway.estimateMessageCost(i_destinationNetwork, message.length, MSG_GAS_LIMIT)}(
+            i_destinationContract,
+            i_destinationNetwork,
+            MSG_GAS_LIMIT,
+            message
+        );
+
+        emit OutboundTransfer(messageID, msg.sender, i_destinationContract, tokenIds);
     }
 
-    function transferCost(uint16 networkId, address /*receiver*/, uint256 /*amount*/) internal view returns (uint256 cost) {
-        //bytes memory message = abi.encode(TeleportCommand({from: msg.sender, to: receiver, amount: amount}));
-        bytes memory message = abi.encode("");
-        uint MSG_GAS_LIMIT = 100_000;
+    /// @dev Probably to be removed
+    function transferCost(uint16 networkId, uint[] memory tokenIds) public view returns (uint256 cost) {
+        bytes memory message = abi.encode(TeleportData({user: msg.sender, tokens: tokenIds}));
 
-        return _trustedGateway.estimateMessageCost(networkId, message.length, MSG_GAS_LIMIT);
+        return i_trustedGateway.estimateMessageCost(networkId, message.length, MSG_GAS_LIMIT);
     }
 
     function onGmpReceived(bytes32 /*id*/, uint128 /*network*/, bytes32 /*sender*/, bytes calldata /*data*/) external payable returns (bytes32) {
