@@ -9,7 +9,7 @@ import {IERC721A} from "@ERC721A/contracts/IERC721A.sol";
 import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
 
 /// @dev Owner should be source chain NFT contract
-contract sourceNFT is ERC721A, ERC721AQueryable, Ownable {
+contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
     error ForbiddenCaller();
     error ForbiddenNetwork();
     error ForbiddenContract();
