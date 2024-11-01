@@ -3,11 +3,9 @@ pragma solidity ^0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
 import {SourceNFT} from "../src/cross-chain-nft/SourceNFT.sol";
-import {Receiver} from "../src/cross-chain-erc20/Receiver.sol";
-import {USDT} from "../src/cross-chain-erc20/USDT.sol";
-import {wUSDT} from "../src/cross-chain-erc20/wUSDT.sol";
-import {GmpTestTools} from "@analog-gmp-testing/GmpTestTools.sol";
+import {DestinationNFT} from "../src/cross-chain-nft/DestinationNFT.sol";
 import {Gateway} from "@analog-gmp/Gateway.sol";
+import {GmpTestTools} from "@analog-gmp-testing/GmpTestTools.sol";
 import {GmpMessage, GmpStatus, GmpSender, PrimitiveUtils} from "@analog-gmp/Primitives.sol";
 
 contract CrossChainTest is Test {
@@ -34,6 +32,7 @@ contract CrossChainTest is Test {
         deal(OWNER, 100 ether);
     }
 
+    /// @dev Test to be removed as tested functions will be internal
     function test_lockTokens() public {
         vm.prank(OWNER);
         source.safeBatchMint(USER, 10);
