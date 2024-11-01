@@ -137,6 +137,13 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         emit OutboundOwnershipChange(messageID, msg.sender, to, tokenIds);
     }
 
+    /// @dev Include function signature check to make below conditional check
+    function transferCost(uint[] memory tokenIds) external view returns (uint256 cost) {
+        bytes memory message = abi.encode(TeleportTokens({user: msg.sender, tokens: tokenIds}));
+
+        return i_trustedGateway.estimateMessageCost(i_sourceNetwork, message.length, MSG_GAS_LIMIT);
+    }
+
     function onGmpReceived(bytes32 id, uint128 network, bytes32 sender, bytes calldata data) external payable returns (bytes32) {
         address source = address(uint160(uint256(sender)));
 
