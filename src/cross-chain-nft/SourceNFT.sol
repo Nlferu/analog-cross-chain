@@ -103,6 +103,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     /// @dev Consider removing 'payable'
     function crossChainTokensTransferFrom(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
+        /// @dev Check if msg.sender is tokens owner
         lockTokens(tokenIds);
 
         bytes memory message = abi.encode(TeleportTokens({user: msg.sender, tokens: tokenIds}));
@@ -114,21 +115,15 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         /// @param destinationNetwork the target chain where the contract call will be made
         /// @param executionGasLimit the gas limit available for the contract call
         /// @param data message data with no specified format
-        messageID = i_trustedGateway.submitMessage{value: i_trustedGateway.estimateMessageCost(i_destinationNetwork, message.length, MSG_GAS_LIMIT)}(
-            i_destinationContract,
-            i_destinationNetwork,
-            MSG_GAS_LIMIT,
-            message
-        );
+        messageID = i_trustedGateway.submitMessage{value: msg.value}(i_destinationContract, i_destinationNetwork, MSG_GAS_LIMIT, message);
 
         emit OutboundTokensTransfer(messageID, msg.sender, i_destinationContract, tokenIds);
     }
 
-    /// @dev Probably to be removed
-    function transferCost(uint16 networkId, uint[] memory tokenIds) public view returns (uint256 cost) {
+    function transferCost(uint[] memory tokenIds) external view returns (uint256 cost) {
         bytes memory message = abi.encode(TeleportTokens({user: msg.sender, tokens: tokenIds}));
 
-        return i_trustedGateway.estimateMessageCost(networkId, message.length, MSG_GAS_LIMIT);
+        return i_trustedGateway.estimateMessageCost(i_destinationNetwork, message.length, MSG_GAS_LIMIT);
     }
 
     function onGmpReceived(bytes32 id, uint128 network, bytes32 sender, bytes calldata data) external payable returns (bytes32) {
