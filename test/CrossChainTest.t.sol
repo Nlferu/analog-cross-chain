@@ -79,6 +79,26 @@ contract CrossChainTest is Test {
         vm.expectEmit(false, true, true, true, address(source));
         emit SourceNFT.OutboundTokensTransfer(bytes32(0), USER, address(dest), tokens);
         bytes32 messageID = source.crossChainTokensTransferFrom{value: fee}(tokens);
+
+        ///////////////////////////////////////////
+        // Wait Chronicles Relay the GMP message //
+        ///////////////////////////////////////////
+
+        // Now with the `messageID`, we can check the message status in the destination gateway contract
+        // status 0: means the message is pending
+        // status 1: means the message was executed successfully
+        // status 2: means the message was executed but reverted
+        GmpTestTools.switchNetwork(ETHEREUM_NETWORK, USER);
+        console.log("ETHEREUM NETWORK GMP not executed yet, tokens not transferred yet", dest.balanceOf(USER));
+        assertTrue(ETHEREUM_GATEWAY.gmpInfo(messageID).status == GmpStatus.NOT_FOUND, "unexpected message status, expect 'pending'");
+
+        // Note: In a live network, the GMP message will be relayed by Chronicle Nodes after a minimum number of confirmations.
+        // here we can simulate this behavior by calling `GmpTestTools.relayMessages()`, this will relay all pending messages.
+        vm.expectEmit(true, true, true, true, address(dest));
+        emit DestinationNFT.InboundTokensTransfer(messageID, USER, tokens);
+        GmpTestTools.relayMessages();
+
+        /// @dev Check if teleported tokens are locked
     }
 
     /// @dev Test to be removed as tested functions will be internal
