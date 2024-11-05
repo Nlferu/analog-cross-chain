@@ -65,7 +65,7 @@ contract CrossChainTest is Test {
         //////////////////////
 
         uint[] memory tokens = new uint[](3);
-        tokens[0] = 1;
+        tokens[0] = 2;
         tokens[1] = 5;
         tokens[2] = 7;
 
@@ -98,7 +98,29 @@ contract CrossChainTest is Test {
         emit DestinationNFT.InboundTokensTransfer(messageID, USER, tokens);
         GmpTestTools.relayMessages();
 
+        console.log("Token 0: ", dest.checkTokens(0));
+        console.log("Token 1: ", dest.checkTokens(1));
+        console.log("Token 2: ", dest.checkTokens(2));
+
         /// @dev Check if teleported tokens are locked
+
+        uint[] memory tokens_after = new uint[](3);
+        tokens_after[0] = 2; // unlocked
+        tokens_after[1] = 1; // locked
+        tokens_after[2] = 9; // unlocked
+
+        GmpTestTools.switchNetwork(ALEPH_NETWORK, USER);
+        vm.expectRevert(SourceNFT.TokensActiveOnOtherChain.selector);
+        source.safeBatchTransferFrom(USER, DEVIL, tokens_after);
+
+        /// @dev TESTS TODO:
+        // approve()
+        // delegate()
+        // delegateBySig()
+        // safeTransferFrom()
+        // safeTransferFrom()
+        // setApprovalForAll()
+        // transferFrom()
     }
 
     /// @dev Test to be removed as tested functions will be internal
