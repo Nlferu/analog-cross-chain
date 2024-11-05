@@ -89,7 +89,7 @@ contract CrossChainTest is Test {
         // status 1: means the message was executed successfully
         // status 2: means the message was executed but reverted
         GmpTestTools.switchNetwork(ETHEREUM_NETWORK, USER);
-        console.log("ETHEREUM NETWORK GMP not executed yet, tokens not transferred yet", dest.balanceOf(USER));
+        console.log("ETHEREUM NETWORK GMP not executed yet, tokens transferred: ", dest.balanceOf(USER));
         assertTrue(ETHEREUM_GATEWAY.gmpInfo(messageID).status == GmpStatus.NOT_FOUND, "unexpected message status, expect 'pending'");
 
         // Note: In a live network, the GMP message will be relayed by Chronicle Nodes after a minimum number of confirmations.
@@ -105,13 +105,19 @@ contract CrossChainTest is Test {
         /// @dev Check if teleported tokens are locked
 
         uint[] memory tokens_after = new uint[](3);
-        tokens_after[0] = 2; // unlocked
-        tokens_after[1] = 1; // locked
+        tokens_after[0] = 2; // locked
+        tokens_after[1] = 5; // locked
         tokens_after[2] = 9; // unlocked
 
         GmpTestTools.switchNetwork(ALEPH_NETWORK, USER);
         vm.expectRevert(SourceNFT.TokensActiveOnOtherChain.selector);
         source.safeBatchTransferFrom(USER, DEVIL, tokens_after);
+
+        GmpTestTools.switchNetwork(ETHEREUM_NETWORK, USER);
+        dest.tokensOfOwnerIn(USER, 2, 11);
+
+        // test cross-chain dest tokens ownership transfer
+        // test cross-chain reverse from dest to source tokens transfer
 
         /// @dev TESTS TODO:
         // approve()
