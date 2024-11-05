@@ -28,7 +28,8 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     /// @dev Consider changing it into 'bytes32 private immutable'
     string private baseURI;
-    uint256 private constant MSG_GAS_LIMIT = 100_000_0;
+    /// @dev Check if putting more limit here
+    uint256 private constant MSG_GAS_LIMIT = 600_000;
     IGateway private immutable i_trustedGateway;
     address private immutable i_destinationContract;
     uint16 private immutable i_destinationNetwork;
@@ -57,6 +58,11 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         i_trustedGateway = gatewayAddress;
         i_destinationContract = destinationAddress;
         i_destinationNetwork = destinationNetwork;
+    }
+
+    /// @dev It is needed to avoid coinage restrictions on DestinationNFT
+    function _startTokenId() internal pure override returns (uint256) {
+        return 2;
     }
 
     /// @notice Leads to Metadata, which is unique for each token
