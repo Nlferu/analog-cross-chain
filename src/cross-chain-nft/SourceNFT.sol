@@ -28,7 +28,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     /// @dev Consider changing it into 'bytes32 private immutable'
     string private baseURI;
-    uint256 private constant MSG_GAS_LIMIT = 100_000;
+    uint256 private constant MSG_GAS_LIMIT = 100_000_0;
     IGateway private immutable i_trustedGateway;
     address private immutable i_destinationContract;
     uint16 private immutable i_destinationNetwork;
@@ -101,7 +101,6 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     /// @dev CROSS-CHAIN FUNCTIONS
 
-    /// @dev Consider removing 'payable'
     function crossChainTokensTransferFrom(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
         /// @dev Check if msg.sender is tokens owner
         lockTokens(tokenIds);
