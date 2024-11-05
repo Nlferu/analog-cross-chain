@@ -27,7 +27,7 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
 
     /// @dev Consider changing it into 'bytes32 private immutable'
     string private baseURI;
-    uint256 private constant MSG_GAS_LIMIT = 100_000;
+    uint256 private constant MSG_GAS_LIMIT = 600_000;
     IGateway private immutable i_trustedGateway;
     address private immutable i_sourceContract;
     uint16 private immutable i_sourceNetwork;
@@ -37,7 +37,7 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
     /// @dev Emitted when tokens are teleported from one chain to another.
     event InboundTokensTransfer(bytes32 indexed id, address indexed user, uint256[] tokens);
     event OutboundTokensTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256[] tokens);
-    event OutboundOwnershipChange(bytes32 indexed id, address from, address to, uint256[] tokens);
+    event OutboundOwnershipChange(bytes32 indexed id, address indexed from, address indexed to, uint256[] tokens);
 
     /// @dev Constructor
     constructor(
@@ -128,12 +128,7 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         /// @param sourceNetwork the target chain where the contract call will be made
         /// @param executionGasLimit the gas limit available for the contract call
         /// @param data message data with no specified format
-        messageID = i_trustedGateway.submitMessage{value: i_trustedGateway.estimateMessageCost(i_sourceNetwork, message.length, MSG_GAS_LIMIT)}(
-            i_sourceContract,
-            i_sourceNetwork,
-            MSG_GAS_LIMIT,
-            message
-        );
+        messageID = i_trustedGateway.submitMessage{value: msg.value}(i_sourceContract, i_sourceNetwork, MSG_GAS_LIMIT, message);
 
         emit OutboundOwnershipChange(messageID, msg.sender, to, tokenIds);
     }
@@ -145,9 +140,9 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         return i_trustedGateway.estimateMessageCost(i_sourceNetwork, message.length, MSG_GAS_LIMIT);
     }
 
-    // function _sequentialUpTo() internal pure override returns (uint256) {
-    //     return 1;
-    // }
+    function _sequentialUpTo() internal pure override returns (uint256) {
+        return 1;
+    }
 
     function onGmpReceived(bytes32 id, uint128 network, bytes32 sender, bytes calldata data) external payable returns (bytes32) {
         address source = address(uint160(uint256(sender)));
@@ -159,24 +154,24 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         TeleportTokens memory command = abi.decode(data, (TeleportTokens));
 
         /// @dev This is cheaper, but require additional mapping and token id's would not be the same on both chains
-        _safeMint(command.user, command.tokens.length);
+        // _safeMint(command.user, command.tokens.length);
 
-        uint initialSupply = totalSupply();
+        // uint initialSupply = totalSupply();
 
         /// @dev These updates requires tons of gas -> so we need to increase gas limits on 'source' contract
         // Reverse loop
-        for (uint i = command.tokens.length; i > 0; i--) {
-            s_srcToDstToken[initialSupply - i] = command.tokens[i - 1];
-        }
+        // for (uint i = command.tokens.length; i > 0; i--) {
+        //     s_srcToDstToken[initialSupply - i] = command.tokens[i - 1];
+        // }
 
         // for (uint256 i = 0; i < command.tokens.length; i++) {
         //     s_srcToDstToken[initialSupply + i] = command.tokens[i];
         // }
 
         /// @dev Minting all tokens exactly as they exist on source NFT we avoid need of additional mapping, but we bear additional cost of not using batchMint
-        // for (uint i; i < command.tokens.length; i++) {
-        //     _safeMintSpot(command.user, command.tokens[i]);
-        // }
+        for (uint i; i < command.tokens.length; i++) {
+            _safeMintSpot(command.user, command.tokens[i]);
+        }
 
         emit InboundTokensTransfer(id, command.user, command.tokens);
 
