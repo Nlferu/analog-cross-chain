@@ -32,6 +32,8 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
     address private immutable i_sourceContract;
     uint16 private immutable i_sourceNetwork;
 
+    mapping(uint256 src_tokenId => uint256 dst_tokenId) s_srcToDstToken;
+
     /// @dev Emitted when tokens are teleported from one chain to another.
     event InboundTokensTransfer(bytes32 indexed id, address indexed user, uint256[] tokens);
     event OutboundTokensTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256[] tokens);
@@ -93,7 +95,6 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
 
     /// @dev CROSS-CHAIN FUNCTIONS
 
-    /// @dev Consider removing 'payable'
     function crossChainTokensTransferFrom(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
         _batchBurn(address(0), tokenIds);
 
@@ -115,7 +116,7 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         emit OutboundTokensTransfer(messageID, msg.sender, i_sourceContract, tokenIds);
     }
 
-    /// @dev Consider removing 'payable' -> change it to internal
+    /// @dev Consider change to internal
     function crossChainTokensOwnershipChange(address to, uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
         _safeBatchTransferFrom(address(0), msg.sender, to, tokenIds, "");
 
@@ -144,6 +145,10 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         return i_trustedGateway.estimateMessageCost(i_sourceNetwork, message.length, MSG_GAS_LIMIT);
     }
 
+    // function _sequentialUpTo() internal pure override returns (uint256) {
+    //     return 1;
+    // }
+
     function onGmpReceived(bytes32 id, uint128 network, bytes32 sender, bytes calldata data) external payable returns (bytes32) {
         address source = address(uint160(uint256(sender)));
 
@@ -153,11 +158,35 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
 
         TeleportTokens memory command = abi.decode(data, (TeleportTokens));
 
+        /// @dev This is cheaper, but require additional mapping and token id's would not be the same on both chains
         _safeMint(command.user, command.tokens.length);
+
+        uint initialSupply = totalSupply();
+
+        /// @dev These updates requires tons of gas -> so we need to increase gas limits on 'source' contract
+        // Reverse loop
+        for (uint i = command.tokens.length; i > 0; i--) {
+            s_srcToDstToken[initialSupply - i] = command.tokens[i - 1];
+        }
+
+        // for (uint256 i = 0; i < command.tokens.length; i++) {
+        //     s_srcToDstToken[initialSupply + i] = command.tokens[i];
+        // }
+
+        /// @dev Minting all tokens exactly as they exist on source NFT we avoid need of additional mapping, but we bear additional cost of not using batchMint
+        // for (uint i; i < command.tokens.length; i++) {
+        //     _safeMintSpot(command.user, command.tokens[i]);
+        // }
 
         emit InboundTokensTransfer(id, command.user, command.tokens);
 
         return id;
+    }
+
+    function checkTokens(uint id) public view returns (uint) {
+        // CHeck if given id exists
+
+        return s_srcToDstToken[id];
     }
 
     /// @dev REQUIRED FUNCTIONS OVERRIDES
