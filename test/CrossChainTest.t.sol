@@ -98,10 +98,6 @@ contract CrossChainTest is Test {
         emit DestinationNFT.InboundTokensTransfer(messageID, USER, tokens);
         GmpTestTools.relayMessages();
 
-        console.log("Token 0: ", dest.checkTokens(0));
-        console.log("Token 1: ", dest.checkTokens(1));
-        console.log("Token 2: ", dest.checkTokens(2));
-
         /// @dev Check if teleported tokens are locked
 
         uint[] memory tokens_after = new uint[](3);
@@ -115,6 +111,21 @@ contract CrossChainTest is Test {
 
         GmpTestTools.switchNetwork(ETHEREUM_NETWORK, USER);
         dest.tokensOfOwnerIn(USER, 2, 11);
+
+        /////////////////////////////////
+        // Sending Tokens On Alt Chain //
+        /////////////////////////////////
+
+        uint[] memory dest_tokens = new uint[](1);
+        dest_tokens[0] = 5;
+
+        // Calculating Gateway Fee
+        uint alt_fee = dest.transferCost(DEVIL, dest_tokens);
+
+        dest.crossChainTokensOwnershipChange{value: alt_fee}(DEVIL, dest_tokens);
+        //dest.safeBatchTransferFrom(USER, DEVIL, dest_tokens);
+
+        /// @dev Check if our transfer updated source chain ownership accordingly
 
         // test cross-chain dest tokens ownership transfer
         // test cross-chain reverse from dest to source tokens transfer
