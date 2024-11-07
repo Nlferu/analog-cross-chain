@@ -72,22 +72,13 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         return _totalMinted();
     }
 
-    // /// @dev To be swapped with crossChainFn
-    // function safeTransferFrom(address from, address to, uint256 tokenId) public payable override(ERC721A, IERC721A) {
-    //     // uint[] memory tokenIds = new uint[](1);
-    //     // tokenIds[0] = tokenId;
-
-    //     // crossChainTokensOwnershipChange(to, tokenIds);
-    //     safeTransferFrom(from, to, tokenId);
-    // }
-
     /// @dev Refactor this to use loop for batch transfer...
     /// @notice Safely transfers `tokenIds` in batch from `from` to `to`
-    function safeBatchTransferFrom(address from, address to, uint256[] memory tokenIds) external payable {
-        _safeBatchTransferFrom(msg.sender, from, to, tokenIds, "");
+    // function safeBatchTransferFrom(address from, address to, uint256[] memory tokenIds) external payable {
+    //     _safeBatchTransferFrom(msg.sender, from, to, tokenIds, "");
 
-        crossChainTokensOwnershipChange(to, tokenIds);
-    }
+    //     crossChainTokensOwnershipChange(to, tokenIds);
+    // }
 
     /// @dev CROSS-CHAIN FUNCTIONS
 
@@ -112,11 +103,31 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         emit OutboundTokensTransfer(messageID, msg.sender, i_sourceContract, tokenIds);
     }
 
+    /// @dev To be refactored
+    function safeTransferFrom(address from, address to, uint256 tokenId) public payable override(ERC721A, IERC721A) {
+        safeTransferFrom(from, to, tokenId);
+
+        uint[] memory tokenIds = new uint[](1);
+        tokenIds[0] = tokenId;
+
+        // Encode TeleportOwnership struct and prepend with identifier `0x01`
+        bytes memory message = abi.encodePacked(uint8(0x02), abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds})));
+
+        /// @dev Function 'submitMessage()' sends message from chain A to chain B
+        /// @param sourceAddress the target address on the source chain
+        /// @param sourceNetwork the target chain where the contract call will be made
+        /// @param executionGasLimit the gas limit available for the contract call
+        /// @param data message data with no specified format
+        bytes32 messageID = i_trustedGateway.submitMessage{value: msg.value}(i_sourceContract, i_sourceNetwork, MSG_GAS_LIMIT, message);
+
+        emit OutboundOwnershipChange(messageID, msg.sender, to, tokenIds);
+    }
+
     /// @dev Consider change to internal
-    function crossChainTokensOwnershipChange(address to, uint256[] memory tokenIds) public payable returns (bytes32 messageID) {
-        //_safeBatchTransferFrom(address(0), msg.sender, to, tokenIds, "");
-        /// @dev LoopHere
-        safeTransferFrom(msg.sender, to, tokenIds[0]);
+    function safeBtachTransferFrom(address to, uint256[] memory tokenIds) public payable returns (bytes32 messageID) {
+        for (uint i; i < tokenIds.length; i++) {
+            safeTransferFrom(msg.sender, to, tokenIds[i]);
+        }
 
         // Encode TeleportOwnership struct and prepend with identifier `0x01`
         bytes memory message = abi.encodePacked(uint8(0x02), abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds})));
