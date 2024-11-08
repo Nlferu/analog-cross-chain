@@ -23,6 +23,7 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         address from;
         address to;
         uint256[] tokens;
+        uint8 fn;
     }
 
     /// @dev Consider changing it into 'bytes32 private immutable'
@@ -82,6 +83,10 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
 
     /// @dev CROSS-CHAIN FUNCTIONS
 
+    function mint(uint id) external {
+        _safeMintSpot(msg.sender, id);
+    }
+
     function crossChainTokensTransferFrom(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
         _batchBurn(address(0), tokenIds);
 
@@ -111,7 +116,7 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         tokenIds[0] = tokenId;
 
         // Encode TeleportOwnership struct and prepend with identifier `0x01`
-        bytes memory message = abi.encodePacked(uint8(0x02), abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds})));
+        bytes memory message = abi.encodePacked(uint8(0x02), abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds, fn: 0x01})));
 
         /// @dev Function 'submitMessage()' sends message from chain A to chain B
         /// @param sourceAddress the target address on the source chain
@@ -130,7 +135,8 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         }
 
         // Encode TeleportOwnership struct and prepend with identifier `0x01`
-        bytes memory message = abi.encodePacked(uint8(0x02), abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds})));
+        bytes memory message = abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds, fn: 0x02}));
+        //bytes memory message = abi.encodePacked(uint8(0x02), abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds})));
 
         /// @dev Function 'submitMessage()' sends message from chain A to chain B
         /// @param sourceAddress the target address on the source chain
@@ -145,7 +151,7 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
     /// @dev Include function signature check to make below conditional check
     function transferCost(address to, uint[] memory tokenIds) external view returns (uint256 cost) {
         // bytes memory message = abi.encode(TeleportTokens({user: msg.sender, tokens: tokenIds}));
-        bytes memory message = abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds}));
+        bytes memory message = abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds, fn: 0x02}));
 
         return i_trustedGateway.estimateMessageCost(i_sourceNetwork, message.length, MSG_GAS_LIMIT);
     }
