@@ -24,6 +24,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         address from;
         address to;
         uint256[] tokens;
+        uint8 fn;
     }
 
     /// @dev Consider changing it into 'bytes32 private immutable'
@@ -139,16 +140,18 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         if (senderAddress != i_destinationContract) revert ForbiddenContract();
 
         /// @dev Check if below approach works
-        uint8 commandType = uint8(data[0]);
+        // uint8 commandType = uint8(data[0]);
 
-        if (commandType == 0x01) {
-            TeleportTokens memory command = abi.decode(data, (TeleportTokens));
+        UpdateOwnership memory command = abi.decode(data, (UpdateOwnership));
+
+        if (command.fn == 0x01) {
+            // TeleportTokens memory command = abi.decode(data, (TeleportTokens));
 
             unlockTokens(command.tokens);
 
-            emit InboundTokensTransfer(id, command.user, command.tokens);
-        } else if (commandType == 0x02) {
-            UpdateOwnership memory command = abi.decode(data, (UpdateOwnership));
+            // emit InboundTokensTransfer(id, command.user, command.tokens);
+        } else if (command.fn == 0x02) {
+            // UpdateOwnership memory command = abi.decode(data, (UpdateOwnership));
 
             /// @dev Below skips approve from user
             _safeBatchTransferFrom(address(0), command.from, command.to, command.tokens, "");
