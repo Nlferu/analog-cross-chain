@@ -105,7 +105,7 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
 
     /// @dev To be refactored
     function safeTransferFrom(address from, address to, uint256 tokenId) public payable override(ERC721A, IERC721A) {
-        safeTransferFrom(from, to, tokenId);
+        super.safeTransferFrom(from, to, tokenId);
 
         uint[] memory tokenIds = new uint[](1);
         tokenIds[0] = tokenId;
@@ -124,9 +124,9 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
     }
 
     /// @dev Consider change to internal
-    function safeBtachTransferFrom(address to, uint256[] memory tokenIds) public payable returns (bytes32 messageID) {
+    function safeBtachTransfer(address to, uint256[] memory tokenIds) public payable returns (bytes32 messageID) {
         for (uint i; i < tokenIds.length; i++) {
-            safeTransferFrom(msg.sender, to, tokenIds[i]);
+            super.safeTransferFrom(msg.sender, to, tokenIds[i]);
         }
 
         // Encode TeleportOwnership struct and prepend with identifier `0x01`
