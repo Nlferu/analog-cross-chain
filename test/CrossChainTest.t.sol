@@ -122,10 +122,24 @@ contract CrossChainTest is Test {
         // Calculating Gateway Fee
         uint alt_fee = dest.transferCost(DEVIL, dest_tokens);
 
-        dest.safeBtachTransfer{value: alt_fee}(DEVIL, dest_tokens);
-        //dest.safeTransferFrom{value: alt_fee}(USER, DEVIL, 7);
+        // Batch tokens transfer
+        vm.expectEmit(false, true, true, true, address(dest));
+        emit DestinationNFT.OutboundOwnershipChange(bytes32(0), USER, DEVIL, dest_tokens);
+        bytes32 newMsgID = dest.safeBtachTransfer{value: alt_fee}(DEVIL, dest_tokens);
+
+        /// @dev We need to get mmessageID somehow here
+        // Standard token transfer
+        // dest.safeTransferFrom{value: alt_fee}(USER, DEVIL, 7);
 
         /// @dev Check if our transfer updated source chain ownership accordingly
+        // Now with the `messageID`, we can check the message status in the destination gateway contract
+        GmpTestTools.switchNetwork(ALEPH_NETWORK, USER);
+        assertTrue(ALEPH_GATEWAY.gmpInfo(newMsgID).status == GmpStatus.NOT_FOUND, "unexpected message status, expect 'pending'");
+
+        // Simulate this behavior by calling `GmpTestTools.relayMessages()`, this will relay all pending messages.
+        vm.expectEmit(true, true, true, true, address(source));
+        emit SourceNFT.InboundOwnershipChange(newMsgID, USER, DEVIL, dest_tokens);
+        GmpTestTools.relayMessages();
 
         // test cross-chain dest tokens ownership transfer
         // test cross-chain reverse from dest to source tokens transfer
@@ -142,28 +156,89 @@ contract CrossChainTest is Test {
 
     /// @dev Test to be removed as tested functions will be internal
     function test_lockTokens() public {
-        // vm.prank(OWNER);
-        // source.safeBatchMint(USER, 10);
-        // uint[] memory tokens = new uint[](3);
-        // tokens[0] = 1;
-        // tokens[1] = 5;
-        // tokens[2] = 7;
-        // assertEq(source.areTokensUnlocked(tokens), true);
-        // uint[] memory lockTokens = new uint[](2);
-        // lockTokens[0] = 1;
-        // lockTokens[1] = 7;
-        // source.lockTokens(lockTokens);
-        // assertEq(source.areTokensUnlocked(lockTokens), false);
-        // assertEq(source.areTokensUnlocked(tokens), false);
-        // uint[] memory unlocked = new uint[](1);
-        // unlocked[0] = 7;
-        // source.unlockTokens(unlocked);
-        // assertEq(source.areTokensUnlocked(unlocked), true);
-        // assertEq(source.areTokensUnlocked(lockTokens), false);
-        // assertEq(source.areTokensUnlocked(tokens), false);
-        // vm.expectRevert(SourceNFT.TokensActiveOnOtherChain.selector);
-        // source.safeBatchTransferFrom(USER, OWNER, tokens);
-        // vm.prank(USER);
-        // source.safeBatchTransferFrom(USER, OWNER, unlocked);
+        GmpTestTools.setup();
+
+        /// @dev Test if normal .deal on 1 chain only will fail!!!
+        GmpTestTools.deal(OWNER, 100 ether);
+        GmpTestTools.deal(DEVIL, 100 ether);
+        GmpTestTools.deal(USER, 100 ether);
+
+        ///////////////////////////////////////////////////////
+        // Deploy the SourceNFT and DestinationNFT contracts //
+        ///////////////////////////////////////////////////////
+
+        // Pre-compute the contract addresses, because the contracts must know each other addresses.
+        /// @dev Deploying from other addresses to get different contract addresses on both chains
+        SourceNFT source = SourceNFT(vm.computeCreateAddress(OWNER, vm.getNonce(OWNER)));
+        DestinationNFT dest = DestinationNFT(vm.computeCreateAddress(DEVIL, vm.getNonce(DEVIL)));
+
+        GmpTestTools.switchNetwork(ALEPH_NETWORK, OWNER);
+        source = new SourceNFT("Source", "SRC", "http", OWNER, ALEPH_GATEWAY, address(dest), ETHEREUM_NETWORK);
+
+        GmpTestTools.switchNetwork(ALEPH_NETWORK, OWNER);
+        source.safeBatchMint(USER, 10);
+
+        GmpTestTools.switchNetwork(ETHEREUM_NETWORK, DEVIL);
+        dest = new DestinationNFT("Dest", "DST", "https", DEVIL, ETHEREUM_GATEWAY, address(source), ALEPH_NETWORK);
+
+        console.log("Source: ", address(source));
+        console.log("Dest: ", address(dest));
+
+        ///////////////////////////////
+        // Mint Some Tokens For USER //
+        ///////////////////////////////
+
+        vm.stopPrank();
+        vm.startPrank(USER);
+        dest.mint(5);
+
+        ///////////////////////////////////////////
+        // Wait Chronicles Relay the GMP message //
+        ///////////////////////////////////////////
+
+        dest.tokensOfOwnerIn(USER, 2, 11);
+
+        /////////////////////////////////
+        // Sending Tokens On Alt Chain //
+        /////////////////////////////////
+
+        uint[] memory dest_tokens = new uint[](1);
+        dest_tokens[0] = 5;
+
+        // Calculating Gateway Fee
+        uint alt_fee = dest.transferCost(DEVIL, dest_tokens);
+
+        // Batch tokens transfer
+        vm.expectEmit(false, true, true, true, address(dest));
+        emit DestinationNFT.OutboundOwnershipChange(bytes32(0), USER, DEVIL, dest_tokens);
+        bytes32 newMsgID = dest.safeBtachTransfer{value: alt_fee}(DEVIL, dest_tokens);
+
+        /// @dev We need to get mmessageID somehow here
+        // Standard token transfer
+        // dest.safeTransferFrom{value: alt_fee}(USER, DEVIL, 7);
+
+        /// @dev Check if our transfer updated source chain ownership accordingly
+        // Now with the `messageID`, we can check the message status in the destination gateway contract
+        GmpTestTools.switchNetwork(ALEPH_NETWORK, USER);
+        assertTrue(ALEPH_GATEWAY.gmpInfo(newMsgID).status == GmpStatus.NOT_FOUND, "unexpected message status, expect 'pending'");
+
+        // Simulate this behavior by calling `GmpTestTools.relayMessages()`, this will relay all pending messages.
+        vm.expectEmit(true, true, true, true, address(source));
+        emit SourceNFT.InboundOwnershipChange(newMsgID, USER, DEVIL, dest_tokens);
+        GmpTestTools.relayMessages();
+
+        assertEq(source.ownerOf(5), DEVIL);
+
+        // test cross-chain dest tokens ownership transfer
+        // test cross-chain reverse from dest to source tokens transfer
+
+        /// @dev TESTS TODO:
+        // approve()
+        // delegate()
+        // delegateBySig()
+        // safeTransferFrom()
+        // safeTransferFrom()
+        // setApprovalForAll()
+        // transferFrom()
     }
 }
