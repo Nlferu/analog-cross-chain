@@ -122,8 +122,8 @@ contract CrossChainTest is Test {
         // Calculating Gateway Fee
         uint alt_fee = dest.transferCost(DEVIL, dest_tokens);
 
-        dest.crossChainTokensOwnershipChange{value: alt_fee}(DEVIL, dest_tokens);
-        //dest.safeBatchTransferFrom(USER, DEVIL, dest_tokens);
+        dest.safeBtachTransfer{value: alt_fee}(DEVIL, dest_tokens);
+        //dest.safeTransferFrom{value: alt_fee}(USER, DEVIL, 7);
 
         /// @dev Check if our transfer updated source chain ownership accordingly
 
