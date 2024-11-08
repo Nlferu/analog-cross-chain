@@ -141,8 +141,12 @@ contract CrossChainTest is Test {
         emit SourceNFT.InboundOwnershipChange(newMsgID, USER, DEVIL, dest_tokens);
         GmpTestTools.relayMessages();
 
+        // standarize struct in both contracts
+        // solve double relay overflow error
         // test cross-chain dest tokens ownership transfer
         // test cross-chain reverse from dest to source tokens transfer
+        // override all transfer functions on destination chain
+        // check source contract functions and seal them too
 
         /// @dev TESTS TODO:
         // approve()
