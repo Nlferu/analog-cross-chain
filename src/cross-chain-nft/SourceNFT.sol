@@ -15,16 +15,11 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     error ForbiddenNetwork();
     error ForbiddenContract();
 
-    struct TeleportTokens {
-        address user;
-        uint256[] tokens;
-    }
-
-    struct UpdateOwnership {
+    struct TeleportData {
         address from;
         address to;
         uint256[] tokens;
-        uint8 fn;
+        bool transfer;
     }
 
     /// @dev Consider changing it into 'bytes32 private immutable'
