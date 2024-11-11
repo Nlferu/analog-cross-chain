@@ -120,7 +120,7 @@ contract CrossChainTest is Test {
         dest_tokens[0] = 5;
 
         // Calculating Gateway Fee
-        uint alt_fee = dest.transferCost(DEVIL, dest_tokens);
+        uint alt_fee = dest.transferCost(DEVIL, dest_tokens, false);
 
         // Batch tokens transfer
         vm.expectEmit(false, true, true, true, address(dest));
@@ -210,7 +210,7 @@ contract CrossChainTest is Test {
         dest_tokens[0] = 5;
 
         // Calculating Gateway Fee
-        uint alt_fee = dest.transferCost(DEVIL, dest_tokens);
+        uint alt_fee = dest.transferCost(DEVIL, dest_tokens, false);
 
         // Batch tokens transfer
         vm.expectEmit(false, true, true, true, address(dest));
