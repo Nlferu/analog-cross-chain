@@ -14,16 +14,11 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
     error ForbiddenNetwork();
     error ForbiddenContract();
 
-    struct TeleportTokens {
-        address user;
-        uint256[] tokens;
-    }
-
-    struct TeleportOwnership {
+    struct TeleportData {
         address from;
         address to;
         uint256[] tokens;
-        uint8 fn;
+        bool transfer;
     }
 
     /// @dev Consider changing it into 'bytes32 private immutable'
@@ -73,25 +68,18 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         return _totalMinted();
     }
 
-    /// @dev Refactor this to use loop for batch transfer...
-    /// @notice Safely transfers `tokenIds` in batch from `from` to `to`
-    // function safeBatchTransferFrom(address from, address to, uint256[] memory tokenIds) external payable {
-    //     _safeBatchTransferFrom(msg.sender, from, to, tokenIds, "");
-
-    //     crossChainTokensOwnershipChange(to, tokenIds);
-    // }
-
     /// @dev CROSS-CHAIN FUNCTIONS
 
+    /// @dev Temporary function to until we solve double relay call underflow/overflow error
     function mint(uint id) external {
         _safeMintSpot(msg.sender, id);
     }
 
     function crossChainTokensTransferFrom(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
+        /// @dev Below will not work, we need to use single burn under loop
         _batchBurn(address(0), tokenIds);
 
-        // Encode TeleportTokens struct and prepend with identifier `0x01`
-        bytes memory message = abi.encodePacked(uint8(0x01), abi.encode(TeleportTokens({user: msg.sender, tokens: tokenIds})));
+        bytes memory message = abi.encode(TeleportData({from: msg.sender, to: i_sourceContract, tokens: tokenIds, transfer: true}));
 
         /// @dev Function 'submitMessage()' sends message from chain A to chain B
         /// @param sourceAddress the target address on the source chain
@@ -115,8 +103,7 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         uint[] memory tokenIds = new uint[](1);
         tokenIds[0] = tokenId;
 
-        // Encode TeleportOwnership struct and prepend with identifier `0x01`
-        bytes memory message = abi.encodePacked(uint8(0x02), abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds, fn: 0x01})));
+        bytes memory message = abi.encode(TeleportData({from: msg.sender, to: to, tokens: tokenIds, transfer: false}));
 
         /// @dev Function 'submitMessage()' sends message from chain A to chain B
         /// @param sourceAddress the target address on the source chain
@@ -134,9 +121,7 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
             super.safeTransferFrom(msg.sender, to, tokenIds[i]);
         }
 
-        // Encode TeleportOwnership struct and prepend with identifier `0x01`
-        bytes memory message = abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds, fn: 0x02}));
-        //bytes memory message = abi.encodePacked(uint8(0x02), abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds})));
+        bytes memory message = abi.encode(TeleportData({from: msg.sender, to: to, tokens: tokenIds, transfer: false}));
 
         /// @dev Function 'submitMessage()' sends message from chain A to chain B
         /// @param sourceAddress the target address on the source chain
@@ -149,16 +134,10 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
     }
 
     /// @dev Include function signature check to make below conditional check
-    function transferCost(address to, uint[] memory tokenIds) external view returns (uint256 cost) {
-        // bytes memory message = abi.encode(TeleportTokens({user: msg.sender, tokens: tokenIds}));
-        bytes memory message = abi.encode(TeleportOwnership({from: msg.sender, to: to, tokens: tokenIds, fn: 0x02}));
+    function transferCost(address to, uint[] memory tokenIds, bool transfer) external view returns (uint256 cost) {
+        bytes memory message = abi.encode(TeleportData({from: msg.sender, to: to, tokens: tokenIds, transfer: transfer}));
 
         return i_trustedGateway.estimateMessageCost(i_sourceNetwork, message.length, MSG_GAS_LIMIT);
-    }
-
-    /// @dev Enables use of `_safeMintSpot()` function
-    function _sequentialUpTo() internal pure override returns (uint256) {
-        return 1;
     }
 
     function onGmpReceived(bytes32 id, uint128 network, bytes32 sender, bytes calldata data) external payable returns (bytes32) {
@@ -168,19 +147,24 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         if (network != i_sourceNetwork) revert ForbiddenNetwork();
         if (source != i_sourceContract) revert ForbiddenContract();
 
-        TeleportTokens memory command = abi.decode(data, (TeleportTokens));
+        TeleportData memory command = abi.decode(data, (TeleportData));
 
         /// @dev Minting all tokens exactly as they exist on source NFT we avoid need of additional mapping, but we bear additional cost of not using batchMint
         for (uint i; i < command.tokens.length; i++) {
-            _safeMintSpot(command.user, command.tokens[i]);
+            _safeMintSpot(command.from, command.tokens[i]);
         }
 
-        emit InboundTokensTransfer(id, command.user, command.tokens);
+        emit InboundTokensTransfer(id, command.from, command.tokens);
 
         return id;
     }
 
     /// @dev REQUIRED FUNCTIONS OVERRIDES
+
+    /// @dev Enables use of `_safeMintSpot()` function
+    function _sequentialUpTo() internal pure override returns (uint256) {
+        return 1;
+    }
 
     /// @notice Override ERC721A and ERC721AVotes Function
     /// @dev Additionally delegates vote to new token owner
