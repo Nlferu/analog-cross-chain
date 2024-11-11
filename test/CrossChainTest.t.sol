@@ -159,7 +159,7 @@ contract CrossChainTest is Test {
     }
 
     /// @dev Test to be removed as tested functions will be internal
-    function test_teleportTokensBackward() public {
+    function test_BackwardTeleport() public {
         GmpTestTools.setup();
 
         /// @dev Test if normal .deal on 1 chain only will fail!!!
