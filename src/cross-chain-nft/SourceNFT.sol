@@ -107,7 +107,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         /// @dev Check if msg.sender is tokens owner
         lockTokens(tokenIds);
 
-        bytes memory message = abi.encode(TeleportTokens({user: msg.sender, tokens: tokenIds}));
+        bytes memory message = abi.encode(TeleportData({from: msg.sender, to: address(this), tokens: tokenIds, transfer: true}));
 
         //uint256 cost = i_trustedGateway.estimateMessageCost(i_destinationNetwork, message.length, MSG_GAS_LIMIT);
 
@@ -122,7 +122,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     }
 
     function transferCost(uint[] memory tokenIds) external view returns (uint256 cost) {
-        bytes memory message = abi.encode(TeleportTokens({user: msg.sender, tokens: tokenIds}));
+        bytes memory message = abi.encode(TeleportData({from: msg.sender, to: i_destinationContract, tokens: tokenIds, transfer: true}));
 
         return i_trustedGateway.estimateMessageCost(i_destinationNetwork, message.length, MSG_GAS_LIMIT);
     }
@@ -137,17 +137,13 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         /// @dev Check if below approach works
         // uint8 commandType = uint8(data[0]);
 
-        UpdateOwnership memory command = abi.decode(data, (UpdateOwnership));
+        TeleportData memory command = abi.decode(data, (TeleportData));
 
-        if (command.fn == 0x01) {
-            // TeleportTokens memory command = abi.decode(data, (TeleportTokens));
-
+        if (command.transfer) {
             unlockTokens(command.tokens);
 
-            // emit InboundTokensTransfer(id, command.user, command.tokens);
-        } else if (command.fn == 0x02) {
-            // UpdateOwnership memory command = abi.decode(data, (UpdateOwnership));
-
+            emit InboundTokensTransfer(id, command.from, command.tokens);
+        } else if (!command.transfer) {
             /// @dev Below skips approve from user
             _safeBatchTransferFrom(address(0), command.from, command.to, command.tokens, "");
 
