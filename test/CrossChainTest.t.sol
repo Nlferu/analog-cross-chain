@@ -2,6 +2,7 @@
 pragma solidity ^0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {SourceNFT} from "../src/cross-chain-nft/SourceNFT.sol";
 import {DestinationNFT} from "../src/cross-chain-nft/DestinationNFT.sol";
 import {Gateway} from "@analog-gmp/Gateway.sol";
@@ -71,7 +72,7 @@ contract CrossChainTest is Test {
         // test cross-chain dest tokens ownership transfer
         // test cross-chain reverse from dest to source tokens transfer
         // override all transfer functions on destination chain
-        // check source contract functions and seal them too
+        // check source contract functions and seal them
 
         /// @dev TESTS TODO:
         // approve()
@@ -88,7 +89,42 @@ contract CrossChainTest is Test {
         // Sending Tokens On Alt Chain //
         /////////////////////////////////
         uint[] memory dest_tokens = new uint[](1);
-        dest_tokens[0] = 5;
+        dest_tokens[0] = 7;
+
+        // Calculating Gateway Fee
+        uint alt_fee = dest.transferCost(DEVIL, dest_tokens, false);
+
+        // Batch tokens transfer
+        vm.recordLogs();
+        vm.expectEmit(false, true, true, true, address(dest));
+        emit DestinationNFT.OutboundOwnershipChange(bytes32(0), USER, DEVIL, dest_tokens);
+        dest.safeTransferFrom{value: alt_fee}(USER, DEVIL, 7);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        /// @dev Below comes from 'OutboundOwnershipChange'
+        /// entries[2].topics[1] comes from 'GmpCreated' emitted from Gateway contract
+        bytes32 messageID = entries[3].topics[1];
+
+        assertEq(0x016f7b7d02c9498905cb5dce96c7753ab6b69e9448e1b68ecca28f6d1cd3e911, messageID);
+
+        /// @dev Check if our transfer updated source chain ownership accordingly
+        // Now with the `messageID`, we can check the message status in the destination gateway contract
+        GmpTestTools.switchNetwork(ALEPH_NETWORK, USER);
+        assertTrue(ALEPH_GATEWAY.gmpInfo(messageID).status == GmpStatus.NOT_FOUND, "unexpected message status, expect 'pending'");
+
+        /// @dev TO BE FIXED AS 'RELAY' CANNOT BE CALLED TWICE
+        // Simulate this behavior by calling `GmpTestTools.relayMessages()`, this will relay all pending messages.
+        // vm.expectEmit(true, true, true, true, address(source));
+        // emit SourceNFT.InboundOwnershipChange(messageID, USER, DEVIL, dest_tokens);
+        // GmpTestTools.relayMessages();
+    }
+
+    function test_updateOwnershipOfTokensAfterBatchTransferOnDestinationChain() public tokensTeleported {
+        /////////////////////////////////
+        // Sending Tokens On Alt Chain //
+        /////////////////////////////////
+        uint[] memory dest_tokens = new uint[](2);
+        dest_tokens[0] = 2;
+        dest_tokens[1] = 7;
 
         // Calculating Gateway Fee
         uint alt_fee = dest.transferCost(DEVIL, dest_tokens, false);
@@ -96,30 +132,51 @@ contract CrossChainTest is Test {
         // Batch tokens transfer
         vm.expectEmit(false, true, true, true, address(dest));
         emit DestinationNFT.OutboundOwnershipChange(bytes32(0), USER, DEVIL, dest_tokens);
-        bytes32 newMsgID = dest.safeBtachTransfer{value: alt_fee}(DEVIL, dest_tokens);
-
-        /// @dev We need to get mmessageID somehow here
-        // Standard token transfer
-        // dest.safeTransferFrom{value: alt_fee}(USER, DEVIL, 7);
+        bytes32 messageID = dest.safeBtachTransfer{value: alt_fee}(DEVIL, dest_tokens);
 
         /// @dev Check if our transfer updated source chain ownership accordingly
         // Now with the `messageID`, we can check the message status in the destination gateway contract
         GmpTestTools.switchNetwork(ALEPH_NETWORK, USER);
-        assertTrue(ALEPH_GATEWAY.gmpInfo(newMsgID).status == GmpStatus.NOT_FOUND, "unexpected message status, expect 'pending'");
+        assertTrue(ALEPH_GATEWAY.gmpInfo(messageID).status == GmpStatus.NOT_FOUND, "unexpected message status, expect 'pending'");
 
-        /// @dev TO BE FIXED AS 'REPLAY' CANNOT BE CALLED TWICE
+        /// @dev TO BE FIXED AS 'RELAY' CANNOT BE CALLED TWICE
         // Simulate this behavior by calling `GmpTestTools.relayMessages()`, this will relay all pending messages.
         // vm.expectEmit(true, true, true, true, address(source));
-        // emit SourceNFT.InboundOwnershipChange(newMsgID, USER, DEVIL, dest_tokens);
+        // emit SourceNFT.InboundOwnershipChange(messageID, USER, DEVIL, dest_tokens);
         // GmpTestTools.relayMessages();
     }
 
-    function test_teleportTokensToSourceChainInBatch() public {
-        /// @dev Change with 'tokensTeleported' modifier
+    function test_teleportTokensBackward() public tokensTeleported {
+        uint[] memory dest_tokens = new uint[](2);
+        dest_tokens[0] = 2;
+        dest_tokens[1] = 7;
+
+        // Calculating Gateway Fee
+        uint alt_fee = dest.transferCost(DEVIL, dest_tokens, true);
+
+        // Batch tokens transfer
+        vm.expectEmit(false, true, true, true, address(dest));
+        emit DestinationNFT.OutboundTokensTransfer(bytes32(0), USER, address(source), dest_tokens);
+        bytes32 messageID = dest.crossChainTokensTransfer{value: alt_fee}(dest_tokens);
+
+        uint[] memory left_tokens = new uint[](1);
+        left_tokens[0] = 5;
+
+        assertEq(dest.tokensOfOwnerIn(USER, 2, 11), left_tokens);
+
+        GmpTestTools.switchNetwork(ALEPH_NETWORK, USER);
+        assertTrue(ALEPH_GATEWAY.gmpInfo(messageID).status == GmpStatus.NOT_FOUND, "unexpected message status, expect 'pending'");
+
+        /// @dev TODO
+        // vm.expectEmit(true, true, true, true, address(source));
+        // emit SourceNFT.InboundOwnershipChange(messageID, USER, DEVIL, dest_tokens);
+        // GmpTestTools.relayMessages();
+
+        // Now source USER should be able to transfer tokens 2, 7 and dest USER should be owner only of token 5
     }
 
     /// @dev Temporary test -> to be removed
-    function test_BackwardTeleport() public {
+    function test_tmpTokensTeleport() public {
         ///////////////////////////////
         // Mint Some Tokens For USER //
         ///////////////////////////////
@@ -206,7 +263,7 @@ contract CrossChainTest is Test {
         // We do 'false' here as we do not know messageID
         vm.expectEmit(false, true, true, true, address(source));
         emit SourceNFT.OutboundTokensTransfer(bytes32(0), USER, address(dest), tokens);
-        bytes32 messageID = source.crossChainTokensTransferFrom{value: fee}(tokens);
+        bytes32 messageID = source.crossChainTokensTransfer{value: fee}(tokens);
 
         ///////////////////////////////////////////
         // Wait Chronicles Relay the GMP message //
