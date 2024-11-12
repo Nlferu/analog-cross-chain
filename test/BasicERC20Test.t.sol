@@ -10,8 +10,8 @@ import {GmpMessage, GmpStatus, GmpSender, PrimitiveUtils} from "@analog-gmp/Prim
 import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
 
 contract BasicERC20Test is Test {
-    using PrimitiveUtils for GmpSender;
-    //using PrimitiveUtils for address;
+    BasicERC20 shibuyaErc20;
+    BasicERC20 sepoliaErc20;
 
     address private ALICE = makeAddr("Alice");
     address private BOB = makeAddr("Bob");
@@ -41,8 +41,8 @@ contract BasicERC20Test is Test {
         ///////////////////////////////////////////////
 
         // Pre-compute the contract addresses, because the contracts must know each other addresses.
-        BasicERC20 shibuyaErc20 = BasicERC20(vm.computeCreateAddress(ALICE, vm.getNonce(ALICE)));
-        BasicERC20 sepoliaErc20 = BasicERC20(vm.computeCreateAddress(BOB, vm.getNonce(BOB)));
+        shibuyaErc20 = BasicERC20(vm.computeCreateAddress(ALICE, vm.getNonce(ALICE)));
+        sepoliaErc20 = BasicERC20(vm.computeCreateAddress(BOB, vm.getNonce(BOB)));
 
         // Switch to Shibuya network and deploy the ERC20 using Alice account
         GmpTestTools.switchNetwork(SHIBUYA_NETWORK, ALICE);
