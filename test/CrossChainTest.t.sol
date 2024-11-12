@@ -111,11 +111,15 @@ contract CrossChainTest is Test {
         GmpTestTools.switchNetwork(ALEPH_NETWORK, USER);
         assertTrue(ALEPH_GATEWAY.gmpInfo(messageID).status == GmpStatus.NOT_FOUND, "unexpected message status, expect 'pending'");
 
+        /// @dev TODO
         /// @dev TO BE FIXED AS 'RELAY' CANNOT BE CALLED TWICE
         // Simulate this behavior by calling `GmpTestTools.relayMessages()`, this will relay all pending messages.
         // vm.expectEmit(true, true, true, true, address(source));
         // emit SourceNFT.InboundOwnershipChange(messageID, USER, DEVIL, dest_tokens);
         // GmpTestTools.relayMessages();
+
+        // Check if source tokens are still locked and owned now by proper user
+        // Check if tokens are present on destination chain under new user
     }
 
     function test_updateOwnershipOfTokensAfterBatchTransferOnDestinationChain() public tokensTeleported {
@@ -139,11 +143,15 @@ contract CrossChainTest is Test {
         GmpTestTools.switchNetwork(ALEPH_NETWORK, USER);
         assertTrue(ALEPH_GATEWAY.gmpInfo(messageID).status == GmpStatus.NOT_FOUND, "unexpected message status, expect 'pending'");
 
+        /// @dev TODO
         /// @dev TO BE FIXED AS 'RELAY' CANNOT BE CALLED TWICE
         // Simulate this behavior by calling `GmpTestTools.relayMessages()`, this will relay all pending messages.
         // vm.expectEmit(true, true, true, true, address(source));
         // emit SourceNFT.InboundOwnershipChange(messageID, USER, DEVIL, dest_tokens);
         // GmpTestTools.relayMessages();
+
+        // Check if source tokens are still locked and owned now by proper user
+        // Check if tokens are present on destination chain under new user
     }
 
     function test_teleportTokensBackward() public tokensTeleported {
