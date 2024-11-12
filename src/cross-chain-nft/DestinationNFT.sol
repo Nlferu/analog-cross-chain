@@ -75,9 +75,10 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         _safeMintSpot(msg.sender, id);
     }
 
-    function crossChainTokensTransferFrom(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
-        /// @dev Below will not work, we need to use single burn under loop
-        _batchBurn(address(0), tokenIds);
+    function crossChainTokensTransfer(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
+        for (uint i; i < tokenIds.length; i++) {
+            super._burn(tokenIds[i]);
+        }
 
         bytes memory message = abi.encode(TeleportData({from: msg.sender, to: i_sourceContract, tokens: tokenIds, transfer: true}));
 
