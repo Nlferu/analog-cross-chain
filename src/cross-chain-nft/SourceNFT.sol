@@ -103,7 +103,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     /// @dev CROSS-CHAIN FUNCTIONS
 
-    function crossChainTokensTransferFrom(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
+    function crossChainTokensTransfer(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
         /// @dev Check if msg.sender is tokens owner
         lockTokens(tokenIds);
 
