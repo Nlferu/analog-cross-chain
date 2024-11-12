@@ -6,7 +6,7 @@ import {SourceNFT} from "../src/cross-chain-nft/SourceNFT.sol";
 import {DestinationNFT} from "../src/cross-chain-nft/DestinationNFT.sol";
 import {Gateway} from "@analog-gmp/Gateway.sol";
 import {GmpTestTools} from "@analog-gmp-testing/GmpTestTools.sol";
-import {GmpMessage, GmpStatus, GmpSender, PrimitiveUtils} from "@analog-gmp/Primitives.sol";
+import {GmpStatus} from "@analog-gmp/Primitives.sol";
 
 contract CrossChainTest is Test {
     SourceNFT source;
@@ -114,7 +114,9 @@ contract CrossChainTest is Test {
         // GmpTestTools.relayMessages();
     }
 
-    function test_teleportTokensToSourceChain() public {}
+    function test_teleportTokensToSourceChainInBatch() public {
+        /// @dev Change with 'tokensTeleported' modifier
+    }
 
     /// @dev Temporary test -> to be removed
     function test_BackwardTeleport() public {
@@ -122,6 +124,7 @@ contract CrossChainTest is Test {
         // Mint Some Tokens For USER //
         ///////////////////////////////
 
+        /// @dev Change with 'tokensTeleported' modifier
         GmpTestTools.switchNetwork(ALEPH_NETWORK, OWNER);
         source.safeBatchMint(USER, 10);
 
