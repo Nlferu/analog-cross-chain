@@ -56,23 +56,6 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         i_destinationNetwork = destinationNetwork;
     }
 
-    /// @dev It is needed to avoid coinage restrictions on DestinationNFT
-    function _startTokenId() internal pure override returns (uint256) {
-        return 2;
-    }
-
-    /// @notice Leads to Metadata, which is unique for each token
-    function _baseURI() internal view override returns (string memory) {
-        return baseURI;
-    }
-
-    /// @dev Prevents tokenURI from adding tokenId to URI as it should be the same for all tokens
-    function tokenURI(uint256 tokenId) public view override(ERC721A, IERC721A) returns (string memory) {
-        if (!_exists(tokenId)) _revert(URIQueryForNonexistentToken.selector);
-
-        return _baseURI();
-    }
-
     /// @notice Returns total minted tokens amount ignoring performed burns
     /// @dev Call 'totalSupply()' function for amount corrected by burned tokens amount
     function totalMinted() external view returns (uint256) {
@@ -95,6 +78,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     }
 
     /// @notice Safely transfers `tokenIds` in batch from `from` to `to`
+    /// @dev Cross-Chain tokens lock restriction implemented
     function safeBatchTransferFrom(address from, address to, uint256[] memory tokenIds) external {
         if (!areTokensUnlocked(tokenIds)) revert TokensActiveOnOtherChain();
 
@@ -103,8 +87,13 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     /// @dev CROSS-CHAIN FUNCTIONS
 
+    function transferCost(uint[] memory tokenIds) external view returns (uint256 cost) {
+        bytes memory message = abi.encode(TeleportData({from: msg.sender, to: i_destinationContract, tokens: tokenIds, transfer: true}));
+
+        return i_trustedGateway.estimateMessageCost(i_destinationNetwork, message.length, MSG_GAS_LIMIT);
+    }
+
     function crossChainTokensTransfer(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
-        /// @dev Check if msg.sender is tokens owner
         lockTokens(tokenIds);
 
         bytes memory message = abi.encode(TeleportData({from: msg.sender, to: address(this), tokens: tokenIds, transfer: true}));
@@ -121,21 +110,12 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         emit OutboundTokensTransfer(messageID, msg.sender, i_destinationContract, tokenIds);
     }
 
-    function transferCost(uint[] memory tokenIds) external view returns (uint256 cost) {
-        bytes memory message = abi.encode(TeleportData({from: msg.sender, to: i_destinationContract, tokens: tokenIds, transfer: true}));
-
-        return i_trustedGateway.estimateMessageCost(i_destinationNetwork, message.length, MSG_GAS_LIMIT);
-    }
-
     function onGmpReceived(bytes32 id, uint128 network, bytes32 sender, bytes calldata data) external payable returns (bytes32) {
         address senderAddress = address(uint160(uint256(sender)));
 
         if (msg.sender != address(i_trustedGateway)) revert ForbiddenCaller();
         if (network != i_destinationNetwork) revert ForbiddenNetwork();
         if (senderAddress != i_destinationContract) revert ForbiddenContract();
-
-        /// @dev Check if below approach works
-        // uint8 commandType = uint8(data[0]);
 
         TeleportData memory command = abi.decode(data, (TeleportData));
 
@@ -155,6 +135,8 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     // Make it internal
     function lockTokens(uint256[] memory tokenIds) public {
+        // @dev Check if msg.sender is tokens owner
+
         for (uint i; i < tokenIds.length; i++) {
             tokenLockStatus[tokenIds[i]] = true;
         }
@@ -180,6 +162,25 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         return true;
     }
 
+    /// @dev ERC721A FUNCTIONS OVERRIDES ENABLING CUSTOM TOKENURI AND CROSS-CHAIN TRANSFERS
+
+    /// @dev It is needed to avoid coinage restrictions on DestinationNFT
+    function _startTokenId() internal pure override returns (uint256) {
+        return 2;
+    }
+
+    /// @notice Leads to Metadata, which is unique for each token
+    function _baseURI() internal view override returns (string memory) {
+        return baseURI;
+    }
+
+    /// @dev Prevents tokenURI from adding tokenId to URI as it should be the same for all tokens
+    function tokenURI(uint256 tokenId) public view override(ERC721A, IERC721A) returns (string memory) {
+        if (!_exists(tokenId)) _revert(URIQueryForNonexistentToken.selector);
+
+        return _baseURI();
+    }
+
     /// @dev ERC721A FUNCTIONS OVERRIDES ADJUSTING TOKEN LOCK RESTRICTION
 
     // approve() ✔
@@ -190,29 +191,22 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     // setApprovalForAll() ✔
     // transferFrom() ✔
 
+    /// @dev Cross-Chain tokens lock restriction implemented
+    /// @dev Below also overrides safeTransferFrom(from,to,tokenId) and safeTransferFrom(from,to,tokenId,_data)
     function transferFrom(address from, address to, uint256 tokenId) public payable override(ERC721A, IERC721A) {
-        uint[] memory tokens = new uint[](1);
-        tokens[0] = tokenId;
-        if (!areTokensUnlocked(tokens)) revert TokensActiveOnOtherChain();
+        if (tokenLockStatus[tokenId]) revert TokensActiveOnOtherChain();
 
         super.transferFrom(from, to, tokenId);
     }
 
-    function safeTransferFrom(address from, address to, uint256 tokenId) public payable virtual override(ERC721A, IERC721A) {
-        super.safeTransferFrom(from, to, tokenId);
-    }
-
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory _data) public payable virtual override(ERC721A, IERC721A) {
-        super.safeTransferFrom(from, to, tokenId, _data);
-    }
-
-    /// @dev Delegate possible on token transfer
+    /// @dev Consider block of this function
     function delegate(address delegatee) public override {
         // if (!areTokensUnlocked(tokenIds)) revert TokensActiveOnOtherChain();
 
         super.delegate(delegatee);
     }
 
+    /// @dev Consider block of this function
     function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) public override {
         super.delegateBySig(delegatee, nonce, expiry, v, r, s);
     }
