@@ -67,7 +67,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     }
 
     /// @dev Prevents tokenURI from adding tokenId to URI as it should be the same for all tokens
-    function tokenURI(uint256 tokenId) public view virtual override(ERC721A, IERC721A) returns (string memory) {
+    function tokenURI(uint256 tokenId) public view override(ERC721A, IERC721A) returns (string memory) {
         if (!_exists(tokenId)) _revert(URIQueryForNonexistentToken.selector);
 
         return _baseURI();
@@ -182,19 +182,46 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     /// @dev ERC721A FUNCTIONS OVERRIDES ADJUSTING TOKEN LOCK RESTRICTION
 
-    // approve()
-    // delegate()
-    // delegateBySig()
-    // safeTransferFrom()
-    // safeTransferFrom()
-    // setApprovalForAll()
-    // transferFrom()
+    // approve() ✔
+    // delegate() -> restrict
+    // delegateBySig() -> restrict
+    // safeTransferFrom() ✔
+    // safeTransferFrom() ✔
+    // setApprovalForAll() ✔
+    // transferFrom() ✔
+
+    function transferFrom(address from, address to, uint256 tokenId) public payable override(ERC721A, IERC721A) {
+        uint[] memory tokens = new uint[](1);
+        tokens[0] = tokenId;
+        if (!areTokensUnlocked(tokens)) revert TokensActiveOnOtherChain();
+
+        super.transferFrom(from, to, tokenId);
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) public payable virtual override(ERC721A, IERC721A) {
+        super.safeTransferFrom(from, to, tokenId);
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory _data) public payable virtual override(ERC721A, IERC721A) {
+        super.safeTransferFrom(from, to, tokenId, _data);
+    }
+
+    /// @dev Delegate possible on token transfer
+    function delegate(address delegatee) public override {
+        // if (!areTokensUnlocked(tokenIds)) revert TokensActiveOnOtherChain();
+
+        super.delegate(delegatee);
+    }
+
+    function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) public override {
+        super.delegateBySig(delegatee, nonce, expiry, v, r, s);
+    }
 
     /// @dev REQUIRED FUNCTIONS OVERRIDES
 
     /// @notice Override ERC721A and ERC721AVotes Function
     /// @dev Additionally delegates vote to new token owner
-    function _afterTokenTransfers(address from, address to, uint256 startTokenId, uint256 quantity) internal virtual override(ERC721A, ERC721AVotes) {
+    function _afterTokenTransfers(address from, address to, uint256 startTokenId, uint256 quantity) internal override(ERC721A, ERC721AVotes) {
         super._afterTokenTransfers(from, to, startTokenId, quantity);
         if (to != address(0)) _delegate(to, to);
     }
@@ -206,7 +233,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     /// @notice Checks if the contract implements an interface you query for, including ERC721A and Votes interfaces
     /// @param interfaceId The interface identifier, as specified in ERC-165
     /// @return True if the contract implements `interfaceId` or if `interfaceId` is the ERC-165 interface
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721A, IERC721A) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721A, IERC721A) returns (bool) {
         return interfaceId == type(IVotes).interfaceId || super.supportsInterface(interfaceId);
     }
 
