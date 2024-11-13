@@ -9,6 +9,8 @@ import {Gateway} from "@analog-gmp/Gateway.sol";
 import {GmpTestTools} from "@analog-gmp-testing/GmpTestTools.sol";
 import {GmpStatus} from "@analog-gmp/Primitives.sol";
 
+import {IERC721A} from "@ERC721A/contracts/IERC721A.sol";
+
 contract CrossChainTest is Test {
     SourceNFT source;
     DestinationNFT dest;
@@ -167,6 +169,14 @@ contract CrossChainTest is Test {
         emit DestinationNFT.OutboundTokensTransfer(bytes32(0), USER, address(source), dest_tokens);
         bytes32 messageID = dest.crossChainTokensTransfer{value: alt_fee}(dest_tokens);
 
+        uint[] memory tokens_left = new uint[](1);
+        tokens_left[0] = 5;
+
+        vm.stopPrank();
+        vm.prank(DEVIL);
+        vm.expectRevert(IERC721A.TransferCallerNotOwnerNorApproved.selector);
+        dest.crossChainTokensTransfer{value: alt_fee}(tokens_left);
+
         uint[] memory left_tokens = new uint[](1);
         left_tokens[0] = 5;
 
@@ -272,6 +282,9 @@ contract CrossChainTest is Test {
 
         // Calculating Gateway Fee
         uint fee = source.transferCost(tokens);
+
+        vm.expectRevert(IERC721A.TransferCallerNotOwnerNorApproved.selector);
+        source.crossChainTokensTransfer{value: fee}(tokens);
 
         // Switch Caller From OWNER To USER
         vm.stopPrank();
