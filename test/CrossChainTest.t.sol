@@ -217,10 +217,6 @@ contract CrossChainTest is Test {
         emit DestinationNFT.OutboundOwnershipChange(bytes32(0), USER, DEVIL, dest_tokens);
         bytes32 newMsgID = dest.safeBtachTransfer{value: alt_fee}(DEVIL, dest_tokens);
 
-        /// @dev We need to get mmessageID somehow here
-        // Standard token transfer
-        // dest.safeTransferFrom{value: alt_fee}(USER, DEVIL, 7);
-
         /// @dev Check if our transfer updated source chain ownership accordingly
         // Now with the `messageID`, we can check the message status in the destination gateway contract
         GmpTestTools.switchNetwork(ALEPH_NETWORK, USER);
@@ -244,6 +240,18 @@ contract CrossChainTest is Test {
         // safeTransferFrom()
         // setApprovalForAll()
         // transferFrom()
+    }
+
+    function test_teleportedTokensCannotBeUsed() public tokensTeleported {
+        GmpTestTools.switchNetwork(ALEPH_NETWORK, USER);
+        vm.expectRevert(SourceNFT.TokensActiveOnOtherChain.selector);
+        source.transferFrom(USER, DEVIL, 2);
+
+        vm.expectRevert(SourceNFT.TokensActiveOnOtherChain.selector);
+        source.safeTransferFrom(USER, DEVIL, 5);
+
+        vm.expectRevert(SourceNFT.TokensActiveOnOtherChain.selector);
+        source.safeTransferFrom(USER, DEVIL, 7, "");
     }
 
     modifier tokensTeleported() {
