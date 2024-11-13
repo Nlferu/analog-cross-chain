@@ -56,7 +56,6 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
         _safeMintSpot(msg.sender, id);
     }
 
-    /// @dev Include function signature check to make below conditional check
     function transferCost(address to, uint[] memory tokenIds, bool transfer) external view returns (uint256 cost) {
         bytes memory message = abi.encode(TeleportData({from: msg.sender, to: to, tokens: tokenIds, transfer: transfer}));
 
@@ -103,7 +102,8 @@ contract DestinationNFT is ERC721A, ERC721AQueryable, Ownable {
 
     function crossChainTokensTransfer(uint256[] memory tokenIds) external payable returns (bytes32 messageID) {
         for (uint i; i < tokenIds.length; i++) {
-            super._burn(tokenIds[i]);
+            /// @dev Check ownership of tokenIds
+            super._burn(tokenIds[i], true);
         }
 
         bytes memory message = abi.encode(TeleportData({from: msg.sender, to: i_sourceContract, tokens: tokenIds, transfer: true}));
