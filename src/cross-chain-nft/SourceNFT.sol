@@ -125,6 +125,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
             emit InboundTokensTransfer(id, command.from, command.tokens);
         } else if (!command.transfer) {
             /// @dev Below skips approve from user
+            /// @dev Ownership does not need to be checked here as destination contract has this restriction in place
             _safeBatchTransferFrom(address(0), command.from, command.to, command.tokens, "");
 
             emit InboundOwnershipChange(id, command.from, command.to, command.tokens);
@@ -135,9 +136,8 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     // Make it internal
     function lockTokens(uint256[] memory tokenIds) public {
-        // @dev Check if msg.sender is tokens owner
-
         for (uint i; i < tokenIds.length; i++) {
+            if (ownerOf(tokenIds[i]) != msg.sender && getApproved(tokenIds[i]) != msg.sender) revert TransferCallerNotOwnerNorApproved();
             tokenLockStatus[tokenIds[i]] = true;
         }
 
@@ -147,6 +147,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     // Make it internal
     function unlockTokens(uint256[] memory tokenIds) public {
         for (uint i; i < tokenIds.length; i++) {
+            if (ownerOf(tokenIds[i]) != msg.sender && getApproved(tokenIds[i]) != msg.sender) revert TransferCallerNotOwnerNorApproved();
             tokenLockStatus[tokenIds[i]] = false;
         }
 
@@ -200,6 +201,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     }
 
     /// @dev Consider block of this function
+    /// @dev CALL
     function delegate(address delegatee) public override {
         // if (!areTokensUnlocked(tokenIds)) revert TokensActiveOnOtherChain();
 
