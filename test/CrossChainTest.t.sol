@@ -243,6 +243,20 @@ contract CrossChainTest is Test {
         source.safeTransferFrom(USER, DEVIL, 7, "");
     }
 
+    function test_cannotDelegateVotesWithoutTokensTransfer() public {
+        GmpTestTools.switchNetwork(ALEPH_NETWORK, OWNER);
+        source.safeBatchMint(DEVIL, 10);
+
+        vm.stopPrank();
+        vm.prank(DEVIL);
+        vm.expectRevert(SourceNFT.VotesDelegationOnlyOnTokensTransfer.selector);
+        source.delegate(USER);
+
+        vm.prank(DEVIL);
+        vm.expectRevert(SourceNFT.VotesDelegationOnlyOnTokensTransfer.selector);
+        source.delegateBySig(USER, 6, 6, 6, "", "");
+    }
+
     modifier tokensTeleported() {
         ///////////////////////////////
         // Mint Some Tokens For USER //
