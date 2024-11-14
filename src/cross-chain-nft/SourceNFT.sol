@@ -183,15 +183,7 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         return _baseURI();
     }
 
-    /// @dev ERC721A FUNCTIONS OVERRIDES ADJUSTING TOKEN LOCK RESTRICTION
-
-    // approve() ✔
-    // delegate() -> restrict
-    // delegateBySig() -> restrict
-    // safeTransferFrom() ✔
-    // safeTransferFrom() ✔
-    // setApprovalForAll() ✔
-    // transferFrom() ✔
+    /// @dev ERC721A FUNCTIONS OVERRIDES ADJUSTING TOKENS LOCK RESTRICTION
 
     /// @dev Cross-Chain tokens lock restriction implemented
     /// @dev Below also overrides safeTransferFrom(from,to,tokenId) and safeTransferFrom(from,to,tokenId,_data)
@@ -201,17 +193,19 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         super.transferFrom(from, to, tokenId);
     }
 
-    /// @dev This function is blocked intentionally to avoid any potential malfunctions within custom Governor contract and might be unlocked in further contract versions
+    /// @dev This function is blocked intentionally to avoid any potential malfunctions within custom Governor contract
+    /// @notice Might be unlocked in further contract versions
     function delegate(address) public pure override {
         revert VotesDelegationOnlyOnTokensTransfer();
     }
 
-    /// @dev This function is blocked intentionally to avoid any potential malfunctions within custom Governor contract and might be unlocked in further contract versions
+    /// @dev This function is blocked intentionally to avoid any potential malfunctions within custom Governor contract
+    /// @notice Might be unlocked in further contract versions
     function delegateBySig(address, uint256, uint256, uint8, bytes32, bytes32) public pure override {
         revert VotesDelegationOnlyOnTokensTransfer();
     }
 
-    /// @dev REQUIRED FUNCTIONS OVERRIDES
+    /// @dev SOLIDITY REQUIRED FUNCTIONS OVERRIDES
 
     /// @notice Override ERC721A and ERC721AVotes Function
     /// @dev Additionally delegates vote to new token owner
