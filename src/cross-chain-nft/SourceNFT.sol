@@ -11,6 +11,7 @@ import {IGateway} from "@analog-gmp/interfaces/IGateway.sol";
 
 contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
     error TokensActiveOnOtherChain();
+    error VotesDelegationOnlyOnTokensTransfer();
     error ForbiddenCaller();
     error ForbiddenNetwork();
     error ForbiddenContract();
@@ -200,17 +201,14 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
         super.transferFrom(from, to, tokenId);
     }
 
-    /// @dev Consider block of this function
-    /// @dev CALL
-    function delegate(address delegatee) public override {
-        // if (!areTokensUnlocked(tokenIds)) revert TokensActiveOnOtherChain();
-
-        super.delegate(delegatee);
+    /// @dev This function is blocked intentionally to avoid any potential malfunctions within custom Governor contract and might be unlocked in further contract versions
+    function delegate(address) public pure override {
+        revert VotesDelegationOnlyOnTokensTransfer();
     }
 
-    /// @dev Consider block of this function
-    function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) public override {
-        super.delegateBySig(delegatee, nonce, expiry, v, r, s);
+    /// @dev This function is blocked intentionally to avoid any potential malfunctions within custom Governor contract and might be unlocked in further contract versions
+    function delegateBySig(address, uint256, uint256, uint8, bytes32, bytes32) public pure override {
+        revert VotesDelegationOnlyOnTokensTransfer();
     }
 
     /// @dev REQUIRED FUNCTIONS OVERRIDES
