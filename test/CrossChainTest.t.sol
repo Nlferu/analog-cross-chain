@@ -11,6 +11,14 @@ import {GmpStatus} from "@analog-gmp/Primitives.sol";
 
 import {IERC721A} from "@ERC721A/contracts/IERC721A.sol";
 
+/// @dev TODO:
+// try adding Aleph Zero EVM network to GMP
+// solve double relay overflow error
+// test cross-chain dest tokens ownership transfer
+// test cross-chain reverse from dest to source tokens transfer
+// override all transfer functions on destination chain
+// check source contract functions and seal them
+
 contract CrossChainTest is Test {
     SourceNFT source;
     DestinationNFT dest;
@@ -67,23 +75,6 @@ contract CrossChainTest is Test {
 
         GmpTestTools.switchNetwork(ETHEREUM_NETWORK, USER);
         dest.tokensOfOwnerIn(USER, 2, 11);
-
-        /// @dev TODO:
-        // try adding Aleph Zero EVM network to GMP
-        // solve double relay overflow error
-        // test cross-chain dest tokens ownership transfer
-        // test cross-chain reverse from dest to source tokens transfer
-        // override all transfer functions on destination chain
-        // check source contract functions and seal them
-
-        /// @dev TESTS TODO:
-        // approve()
-        // delegate()
-        // delegateBySig()
-        // safeTransferFrom()
-        // safeTransferFrom()
-        // setApprovalForAll()
-        // transferFrom()
     }
 
     function test_updateOwnershipOfTokensAfterTransferOnDestinationChain() public tokensTeleported {
@@ -238,21 +229,9 @@ contract CrossChainTest is Test {
         GmpTestTools.relayMessages();
 
         assertEq(source.ownerOf(5), DEVIL);
-
-        // test cross-chain dest tokens ownership transfer
-        // test cross-chain reverse from dest to source tokens transfer
-
-        /// @dev TESTS TODO:
-        // approve()
-        // delegate()
-        // delegateBySig()
-        // safeTransferFrom()
-        // safeTransferFrom()
-        // setApprovalForAll()
-        // transferFrom()
     }
 
-    function test_teleportedTokensCannotBeUsed() public tokensTeleported {
+    function test_teleportedTokensAreLockedOnSourceChain() public tokensTeleported {
         GmpTestTools.switchNetwork(ALEPH_NETWORK, USER);
         vm.expectRevert(SourceNFT.TokensActiveOnOtherChain.selector);
         source.transferFrom(USER, DEVIL, 2);
