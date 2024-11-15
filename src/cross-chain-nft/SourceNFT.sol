@@ -33,11 +33,9 @@ contract SourceNFT is ERC721A, ERC721AQueryable, EIP712, ERC721AVotes, Ownable {
 
     mapping(uint256 token => bool locked) tokenLockStatus;
 
-    /// @dev Emitted when tokens are teleported from one chain to another.
     event OutboundTokensTransfer(bytes32 indexed id, address indexed from, address indexed to, uint256[] tokens);
     event InboundTokensTransfer(bytes32 indexed id, address indexed user, uint256[] tokens);
     event InboundOwnershipChange(bytes32 indexed id, address from, address to, uint256[] tokens);
-
     event TokensLocked(uint[] tokens);
     event TokensUnlocked(uint[] tokens);
 
